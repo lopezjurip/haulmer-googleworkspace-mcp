@@ -119,17 +119,17 @@ pub fn scopes_arg(selection: &Selection) -> String {
 /// assert!(granted.contains(Service::Drive, Level::Read));
 /// ```
 pub fn selection_from_scopes(granted: &[String]) -> Selection {
-    let is_granted = |short: &&str| {
+    let is_granted = |short: &str| {
         granted
             .iter()
-            .any(|scope| scope.strip_prefix(SCOPE_PREFIX) == Some(*short))
+            .any(|scope| scope.strip_prefix(SCOPE_PREFIX) == Some(short))
     };
     let mut selection = Selection::new();
     for service in Service::ALL {
         for level in [Level::Read, Level::Write] {
             if level_scopes(service, level)
                 .iter()
-                .all(|short| is_granted(&short))
+                .all(|short| is_granted(short))
             {
                 selection.insert(service, level);
             }
