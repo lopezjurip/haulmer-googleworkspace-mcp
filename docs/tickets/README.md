@@ -14,3 +14,4 @@ Local tracker. A ticket is closed by setting `status: done` in its front matter 
 | [T08-skills](T08-skills.md) — install_skills(): install gws skills into agents | T02, T04 |
 | [T09-ui](T09-ui.md) — Tauri wiring and the one-screen UI | T01 |
 | [T10-release-ci](T10-release-ci.md) — CI builds and GitHub Releases | T01 |
+| [T11-review-debt](T11-review-debt.md) — Review debt deferred from the pilot code review | — |

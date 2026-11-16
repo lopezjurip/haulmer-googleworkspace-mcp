@@ -152,6 +152,7 @@ Every dependency was checked for deprecation, last release, popularity and known
 - React 19.3.1, Vite 8.3.8, Tailwind CSS 4.3.5: active, 0 known vulnerabilities in the current version
 - gws 0.22.5: 32k stars, 0 known vulnerabilities; README states it is **not an officially supported Google product**; last release March 2026
 - Rust crates approved by the owner 2026-11-16 (crates.io + osv.dev checked that day; 0 advisories, none yanked): serde 1.0.229, serde_json 1.0.154, thiserror 2.0.21, sha2 0.11.1, ureq 3.5.2, flate2 1.1.11, tar 0.4.46, zip 9.6.1, tauri-plugin-opener 2.7.3, tauri-plugin-dialog 2.8.4; dev: tempfile 3.27.0. npm: @tauri-apps/api 2.12.5, @tauri-apps/plugin-opener 2.7.3, @tauri-apps/plugin-dialog 2.8.4. Any other dependency needs the same check and the owner's OK.
+- Toolchain dependencies approved by the owner 2026-11-16: npm dev @tauri-apps/cli, @vitejs/plugin-react, @tailwindcss/vite, typescript 7.x, @types/react, @types/react-dom; cargo build-dep tauri-build.
 - Rejected: `reqwest` (21 dependencies, async; `ureq` is enough behind the HTTP port), `hex` (inline hex encoding instead), `arctic` (deprecated), `googleapis` npm (246 MB), `tiny_http` (no release since 2022)
 
 ## Testing Decisions
