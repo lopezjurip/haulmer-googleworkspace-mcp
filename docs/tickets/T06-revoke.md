@@ -1,7 +1,7 @@
 ---
 id: T06
 title: revoke_all(): revoke at Google and clear local credentials
-status: open
+status: done
 blocked_by: [T03, T04]
 ---
 
