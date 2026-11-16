@@ -1,6 +1,34 @@
-//! T03 — the real [`HttpClient`] (ureq, added by T03).
+//! T03 — the real [`HttpClient`] on ureq (rustls, follows redirects).
 
 use crate::{CoreError, HttpClient, HttpResponse};
+
+/// Largest body read (the gws archives are well below this).
+const MAX_BODY: u64 = 200 * 1024 * 1024;
+
+/// An agent that returns every HTTP status as a response instead of an error.
+fn agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .build()
+        .into()
+}
+
+/// Reads a ureq result into an [`HttpResponse`]; transport failures become [`CoreError::Http`].
+fn to_response(
+    url: &str,
+    result: Result<ureq::http::Response<ureq::Body>, ureq::Error>,
+) -> Result<HttpResponse, CoreError> {
+    let http_error = |error: ureq::Error| CoreError::Http(format!("{url}: {error}"));
+    let mut response = result.map_err(http_error)?;
+    let status = response.status().as_u16();
+    let body = response
+        .body_mut()
+        .with_config()
+        .limit(MAX_BODY)
+        .read_to_vec()
+        .map_err(http_error)?;
+    Ok(HttpResponse::new(status, body))
+}
 
 /// Real HTTP client used by the app. Must follow redirects and return non-2xx statuses as `Ok`.
 ///
@@ -27,7 +55,7 @@ impl SystemHttp {
 }
 
 impl HttpClient for SystemHttp {
-    /// GETs a URL (stub until T03).
+    /// GETs a URL, following redirects.
     ///
     /// # Example
     ///
@@ -36,11 +64,10 @@ impl HttpClient for SystemHttp {
     /// let response = SystemHttp::new().get("https://example.com");
     /// ```
     fn get(&self, url: &str) -> Result<HttpResponse, CoreError> {
-        let _ = url;
-        Err(CoreError::NotImplemented("system_http::get (T03)"))
+        to_response(url, agent().get(url).call())
     }
 
-    /// POSTs a form (stub until T03).
+    /// POSTs an `application/x-www-form-urlencoded` form.
     ///
     /// # Example
     ///
@@ -49,7 +76,6 @@ impl HttpClient for SystemHttp {
     /// let response = SystemHttp::new().post_form("https://oauth2.googleapis.com/revoke", &[("token", "t")]);
     /// ```
     fn post_form(&self, url: &str, form: &[(&str, &str)]) -> Result<HttpResponse, CoreError> {
-        let _ = (url, form);
-        Err(CoreError::NotImplemented("system_http::post_form (T03)"))
+        to_response(url, agent().post(url).send_form(form.iter().copied()))
     }
 }

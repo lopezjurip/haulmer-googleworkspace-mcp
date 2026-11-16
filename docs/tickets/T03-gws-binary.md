@@ -1,7 +1,7 @@
 ---
 id: T03
 title: Find or download the pinned gws binary
-status: open
+status: done
 blocked_by: [T01]
 ---
 
@@ -19,7 +19,7 @@ Module `gws_binary`: resolve the `gws` binary to run, pinned to v0.22.5.
 - Add the real `HttpClient` with `ureq` in this ticket. Dependencies: ureq, sha2, flate2, tar, zip.
 
 ## Acceptance criteria
-- [ ] Pinned binary on PATH → no HTTP calls.
-- [ ] Missing binary → GET asset + checksum, binary written to app data, then used.
-- [ ] Checksum mismatch → error, no file at the binary path, runner never called with it.
-- [ ] Wrong version on PATH → download path is taken.
+- [x] Pinned binary on PATH → no HTTP calls.
+- [x] Missing binary → GET asset + checksum, binary written to app data, then used.
+- [x] Checksum mismatch → error, no file at the binary path, runner never called with it.
+- [x] Wrong version on PATH → download path is taken.
