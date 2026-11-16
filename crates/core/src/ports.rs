@@ -11,7 +11,8 @@ use crate::CoreError;
 pub const KILLED_EXIT_CODE: i32 = -1;
 
 /// A program invocation: program, arguments, environment changes and working folder.
-/// The child inherits the parent environment, plus `env`, minus `env_remove`. Stdin is always closed.
+/// The child inherits the parent environment, plus `env`, minus `env_remove` (removal wins
+/// when a name is in both). Stdin is always closed.
 ///
 /// # Example
 ///
