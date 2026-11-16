@@ -1,21 +1,50 @@
 //! T08 — `Core::install_skills()`: install the pinned gws skills into the agents.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
-use crate::{Core, CoreError, InstalledSkills, KeyStorage, Selection, Service};
+use crate::gws_binary::sha256_hex;
+use crate::ports::download;
+use crate::{Core, CoreError, InstalledSkills, Selection, Service};
 
-/// Tarball of the gws repository at the pinned tag; skills live under `skills/`.
+/// Commit of gws tag `v0.22.5` (a lightweight tag). Pinned by commit because tags can move.
 ///
 /// # Example
 ///
 /// ```
-/// assert!(haulmer_connect_core::skills::SKILLS_TARBALL_URL.ends_with("v0.22.5.tar.gz"));
+/// assert_eq!(haulmer_connect_core::skills::SKILLS_COMMIT.len(), 40);
 /// ```
-pub const SKILLS_TARBALL_URL: &str =
-    "https://github.com/googleworkspace/cli/archive/refs/tags/v0.22.5.tar.gz";
+pub const SKILLS_COMMIT: &str = "705fb0ecac6f4249679958f6325b809b63fdde17";
+
+/// Tarball of the gws repository at [`SKILLS_COMMIT`]; skills live under `<top>/skills/`.
+///
+/// # Example
+///
+/// ```
+/// use haulmer_connect_core::skills::{SKILLS_COMMIT, SKILLS_TARBALL_URL};
+/// assert!(SKILLS_TARBALL_URL.ends_with(&format!("{SKILLS_COMMIT}.tar.gz")));
+/// ```
+pub const SKILLS_TARBALL_URL: &str = "https://github.com/googleworkspace/cli/archive/705fb0ecac6f4249679958f6325b809b63fdde17.tar.gz";
+
+/// SHA-256 of [`SKILLS_TARBALL_URL`], computed when it was pinned. A download that does
+/// not match is rejected before anything is extracted or written.
+///
+/// # Example
+///
+/// ```
+/// assert_eq!(haulmer_connect_core::skills::SKILLS_TARBALL_SHA256.len(), 64);
+/// ```
+pub const SKILLS_TARBALL_SHA256: &str =
+    "38a27bae67755c101da1278154ca4b9bf9f7fdccd7a5a1db916c2ff880bfa9fd";
+
+/// File in `Paths::app_data` listing, per skills folder, the skills haulmer-connect installed.
+/// Only those are ever replaced or removed.
+const MANIFEST_FILE: &str = "installed-skills.json";
+
+/// Skills folder path -> skill folder names haulmer-connect installed there.
+type Manifest = BTreeMap<String, BTreeSet<String>>;
 
 /// The skill every per-service skill reads first; always installed.
 const SHARED_SKILL: &str = "gws-shared";
@@ -83,29 +112,79 @@ impl Core {
             .filter(|(name, _)| *name == SHARED_SKILL || granted_skill(granted, name))
             .collect();
 
+        let mut manifest = self.read_manifest()?;
         let mut installed = Vec::new();
         for target in targets {
             fs::create_dir_all(&target)?;
-            remove_ungranted(&target, granted)?;
-            for (name, files) in &wanted {
-                write_skill(&target.join(name), files)?;
+            let key = target.to_string_lossy().into_owned();
+            let owned = manifest.entry(key).or_default();
+            // Remove what the app installed earlier and no longer wants.
+            for name in owned.clone() {
+                if !wanted.contains_key(&name) {
+                    remove_dir_if_present(&target.join(&name))?;
+                    owned.remove(&name);
+                }
             }
+            let (mut skills, mut skipped) = (Vec::new(), Vec::new());
+            for (name, files) in &wanted {
+                let dir = target.join(name);
+                if dir.exists() && !owned.contains(*name) {
+                    skipped.push(name.to_string());
+                } else {
+                    write_skill(&dir, files)?;
+                    owned.insert(name.to_string());
+                    skills.push(name.to_string());
+                }
+            }
+            self.write_manifest(&manifest)?;
             installed.push(InstalledSkills {
                 target,
-                skills: wanted.keys().map(|name| name.to_string()).collect(),
+                skills,
+                skipped,
             });
         }
         Ok(installed)
+    }
+
+    /// Reads [`MANIFEST_FILE`]; empty when it does not exist.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let manifest = self.read_manifest()?;
+    /// let owned = manifest.get("/home/ana/.claude/skills"); // Some({"gws-shared", ...})
+    /// ```
+    fn read_manifest(&self) -> Result<Manifest, CoreError> {
+        let path = self.paths.app_data.join(MANIFEST_FILE);
+        match fs::read(&path) {
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .map_err(|error| CoreError::Parse(format!("{}: {error}", path.display()))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Manifest::new()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Writes [`MANIFEST_FILE`], creating `app_data` if missing.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mut manifest = self.read_manifest()?;
+    /// manifest.entry("/home/ana/.claude/skills".into()).or_default().insert("gws-shared".into());
+    /// self.write_manifest(&manifest)?;
+    /// ```
+    fn write_manifest(&self, manifest: &Manifest) -> Result<(), CoreError> {
+        fs::create_dir_all(&self.paths.app_data)?;
+        let json = serde_json::to_vec_pretty(manifest)?;
+        fs::write(self.paths.app_data.join(MANIFEST_FILE), json)?;
+        Ok(())
     }
 
     /// The "Environment" section for `gws-shared/SKILL.md` when the config folder or the
     /// key storage is not the gws default; `None` otherwise.
     fn environment_section(&self) -> Result<Option<String>, CoreError> {
         let settings = self.settings()?;
-        let backend = match settings.resolved_key_storage() {
-            KeyStorage::File => "file",
-            _ => "keyring",
-        };
+        let backend = settings.resolved_key_storage().backend();
         if settings.is_default_config_dir() && backend == "keyring" {
             return Ok(None);
         }
@@ -114,30 +193,40 @@ impl Core {
              haulmer-connect keeps the gws credentials outside the default folder. \
              Always run gws with these variables set:\n\n\
              ```bash\n\
-             export GOOGLE_WORKSPACE_CLI_CONFIG_DIR=\"{}\"\n\
+             export GOOGLE_WORKSPACE_CLI_CONFIG_DIR={}\n\
              export GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND={backend}\n\
              ```\n",
-            settings.active_config_dir(&self.paths).display()
+            shell_quote(&settings.active_config_dir(&self.paths).to_string_lossy())
         )))
     }
 
-    /// Downloads the pinned tarball and returns its skills by folder name.
+    /// Downloads the pinned tarball, checks its SHA-256 (a mismatch is
+    /// [`CoreError::ChecksumMismatch`] before anything is extracted) and returns its skills
+    /// by folder name.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let skills = self.download_skills()?;
+    /// assert!(skills.contains_key("gws-shared"));
+    /// ```
     fn download_skills(&self) -> Result<BTreeMap<String, SkillFiles>, CoreError> {
-        let response = self.http.get(SKILLS_TARBALL_URL)?;
-        if response.status != 200 {
-            return Err(CoreError::Download(format!(
-                "skills download returned HTTP {}",
-                response.status
-            )));
+        let archive = download(self.http.as_ref(), SKILLS_TARBALL_URL)?;
+        let actual = sha256_hex(&archive);
+        if actual != self.skills_sha256 {
+            return Err(CoreError::ChecksumMismatch {
+                expected: self.skills_sha256.clone(),
+                actual,
+            });
         }
-        extract_skills(&response.body)
+        extract_skills(&archive)
     }
 }
 
 /// The service whose skills a folder name belongs to (`gws-gmail*`, `gws-meet`, ...).
 fn skill_service(name: &str) -> Option<Service> {
     Service::ALL.into_iter().find(|service| {
-        let base = format!("gws-{}", service_slug(*service));
+        let base = format!("gws-{}", service.slug());
         match service {
             Service::Meet => name == base,
             _ => name == base || name.starts_with(&format!("{base}-")),
@@ -145,39 +234,45 @@ fn skill_service(name: &str) -> Option<Service> {
     })
 }
 
-/// The service's name in skill folders.
-fn service_slug(service: Service) -> &'static str {
-    match service {
-        Service::Gmail => "gmail",
-        Service::Calendar => "calendar",
-        Service::Chat => "chat",
-        Service::Meet => "meet",
-        Service::Drive => "drive",
-    }
-}
-
 /// Whether `name` is the skill of a service granted at any level.
 fn granted_skill(granted: &Selection, name: &str) -> bool {
     skill_service(name).is_some_and(|service| granted.iter().any(|level| level.service == service))
 }
 
-/// Deletes service skill folders in `target` whose service is not granted.
-fn remove_ungranted(target: &Path, granted: &Selection) -> Result<(), CoreError> {
-    for entry in fs::read_dir(target)? {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if skill_service(&name).is_some() && !granted_skill(granted, &name) {
-            fs::remove_dir_all(entry.path())?;
-        }
+/// Deletes the folder `dir` if it exists.
+///
+/// # Example
+///
+/// ```ignore
+/// remove_dir_if_present(&target.join("gws-gmail"))?;
+/// ```
+fn remove_dir_if_present(dir: &Path) -> Result<(), CoreError> {
+    if dir.exists() {
+        fs::remove_dir_all(dir)?;
     }
     Ok(())
 }
 
+/// Quotes `text` as one POSIX shell word: single quotes, embedded `'` written as `'\''`.
+///
+/// # Example
+///
+/// ```ignore
+/// assert_eq!(shell_quote("/Users/ana/it's $HOME"), r"'/Users/ana/it'\''s $HOME'");
+/// ```
+fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
+}
+
 /// Replaces the folder `dir` with exactly `files`.
+///
+/// # Example
+///
+/// ```ignore
+/// write_skill(&target.join("gws-shared"), &skills["gws-shared"])?;
+/// ```
 fn write_skill(dir: &Path, files: &SkillFiles) -> Result<(), CoreError> {
-    if dir.exists() {
-        fs::remove_dir_all(dir)?;
-    }
+    remove_dir_if_present(dir)?;
     for (relative, content) in files {
         let path = dir.join(relative);
         if let Some(parent) = path.parent() {
@@ -188,8 +283,15 @@ fn write_skill(dir: &Path, files: &SkillFiles) -> Result<(), CoreError> {
     Ok(())
 }
 
-/// Reads `<root>/skills/<name>/<file>` entries of a `.tar.gz`. Rejects `..`, absolute paths
-/// and links under `skills/`; ignores everything else.
+/// Reads `<top>/skills/<name>/<file>` entries of a `.tar.gz`, whatever the top folder is
+/// called (`cli-<commit>/` for a commit tarball): the first path component is stripped.
+/// Rejects `..`, absolute paths and links under `skills/`; ignores everything else.
+///
+/// # Example
+///
+/// ```ignore
+/// let skills = extract_skills(&archive)?; // "gws-shared" -> {"SKILL.md": b"..."}
+/// ```
 fn extract_skills(archive: &[u8]) -> Result<BTreeMap<String, SkillFiles>, CoreError> {
     let unsafe_entry = |path: &Path| {
         CoreError::Download(format!("unsafe path in skills archive: {}", path.display()))

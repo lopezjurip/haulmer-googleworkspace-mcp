@@ -214,7 +214,12 @@ export default function App() {
         setNotice({ kind: "info", text: "No agents were found on this computer." });
       } else {
         const targets = installed.map((item) => item.target).join(", ");
-        setNotice({ kind: "success", text: `Skills installed in: ${targets}.` });
+        const skipped = [...new Set(installed.flatMap((item) => item.skipped))];
+        let text = `Skills installed in: ${targets}.`;
+        if (skipped.length > 0) {
+          text += ` Skipped (installed by something else): ${skipped.join(", ")}.`;
+        }
+        setNotice({ kind: "success", text });
       }
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });

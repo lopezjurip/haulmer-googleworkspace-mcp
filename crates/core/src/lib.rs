@@ -85,6 +85,8 @@ pub struct Core {
     /// `save` takes it after the process ends: finding it gone means the login was cancelled.
     #[allow(dead_code)] // used by T07
     active_login: Mutex<Option<Arc<dyn ProcessKiller>>>,
+    /// Expected SHA-256 of the skills tarball; [`skills::SKILLS_TARBALL_SHA256`] unless overridden.
+    skills_sha256: String,
 }
 
 impl Core {
@@ -104,7 +106,23 @@ impl Core {
             runner,
             http,
             active_login: Mutex::new(None),
+            skills_sha256: skills::SKILLS_TARBALL_SHA256.to_string(),
         }
+    }
+
+    /// Replaces the expected SHA-256 of the skills tarball. Only tests need this: they serve
+    /// a small fixture tarball instead of the pinned one.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use haulmer_connect_core::{Core, Paths};
+    /// let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() })
+    ///     .with_skills_sha256("0000000000000000000000000000000000000000000000000000000000000000");
+    /// ```
+    pub fn with_skills_sha256(mut self, sha256: &str) -> Self {
+        self.skills_sha256 = sha256.to_string();
+        self
     }
 
     /// Builds the core with the real adapters ([`SystemRunner`], [`SystemHttp`]); used by the app.

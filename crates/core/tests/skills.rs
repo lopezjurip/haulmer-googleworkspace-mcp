@@ -12,6 +12,7 @@ use haulmer_connect_core::testing::{FakeHttp, FakeRunner};
 use haulmer_connect_core::{
     Core, CoreError, HttpResponse, InstalledSkills, Level, Paths, Selection, Service,
 };
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 /// Every skill folder of the fixture tarball (a subset of the real v0.22.5 one).
@@ -30,21 +31,25 @@ const FIXTURE_SKILLS: &[&str] = &[
     "recipe-email-digest",
 ];
 
-/// Builds a `.tar.gz` mimicking the GitHub tag tarball: `cli-0.22.5/...`.
+/// Builds a `.tar.gz` mimicking the GitHub tag tarball: `cli-705fb0ecac6f4249679958f6325b809b63fdde17/...`.
 fn tarball(extra: impl FnOnce(&mut tar::Builder<Vec<u8>>)) -> Vec<u8> {
     let mut builder = tar::Builder::new(Vec::new());
-    append(&mut builder, "cli-0.22.5/README.md", "# gws\n");
+    append(
+        &mut builder,
+        "cli-705fb0ecac6f4249679958f6325b809b63fdde17/README.md",
+        "# gws\n",
+    );
     for name in FIXTURE_SKILLS {
         let content = format!("---\nname: {name}\n---\n\n# {name}\n");
         append(
             &mut builder,
-            &format!("cli-0.22.5/skills/{name}/SKILL.md"),
+            &format!("cli-705fb0ecac6f4249679958f6325b809b63fdde17/skills/{name}/SKILL.md"),
             &content,
         );
     }
     append(
         &mut builder,
-        "cli-0.22.5/skills/gws-gmail/references/flags.md",
+        "cli-705fb0ecac6f4249679958f6325b809b63fdde17/skills/gws-gmail/references/flags.md",
         "flags\n",
     );
     extra(&mut builder);
@@ -85,10 +90,18 @@ struct Fixture {
 }
 
 impl Fixture {
+    /// Serves `archive` and trusts its SHA-256 (the fixture stands in for the pinned tarball).
     fn new(agent_dirs: &[&str], archive: Vec<u8>) -> Self {
-        Self::serving(agent_dirs, HttpResponse::ok(archive))
+        let sha256: String = Sha256::digest(&archive)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let mut fixture = Self::serving(agent_dirs, HttpResponse::ok(archive));
+        fixture.core = fixture.core.with_skills_sha256(&sha256);
+        fixture
     }
 
+    /// Serves `response` and expects the real pinned checksum.
     fn serving(agent_dirs: &[&str], response: HttpResponse) -> Self {
         let home = TempDir::new().unwrap();
         let app_data = TempDir::new().unwrap();
@@ -143,11 +156,13 @@ fn installs_shared_and_granted_service_skills_into_both_agents() {
         [
             InstalledSkills {
                 target: fixture.skills_dir(".claude"),
-                skills: expected.clone()
+                skills: expected.clone(),
+                skipped: vec![],
             },
             InstalledSkills {
                 target: fixture.skills_dir(".agents"),
-                skills: expected.clone()
+                skills: expected.clone(),
+                skipped: vec![],
             },
         ]
     );
@@ -166,11 +181,10 @@ fn installs_shared_and_granted_service_skills_into_both_agents() {
 }
 
 #[test]
-fn removes_skills_of_services_no_longer_granted_and_keeps_foreign_ones() {
+fn removes_skills_it_installed_for_services_no_longer_granted_and_keeps_others() {
     let fixture = Fixture::new(&[".claude"], tarball(|_| {}));
     let dir = fixture.skills_dir(".claude");
     fs::create_dir_all(dir.join("my-own-skill")).unwrap();
-    fs::create_dir_all(dir.join("gws-gmail/stale")).unwrap();
     fixture
         .core
         .install_skills_for(&Selection::from_levels([
@@ -209,7 +223,7 @@ fn custom_config_folder_adds_an_environment_section_to_the_shared_skill() {
         assert!(shared.starts_with("---\nname: gws-shared\n---\n\n# gws-shared\n"));
         assert!(shared.contains("## Environment"), "{shared}");
         assert!(shared.contains(&format!(
-            "export GOOGLE_WORKSPACE_CLI_CONFIG_DIR=\"{}\"\nexport GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file\n",
+            "export GOOGLE_WORKSPACE_CLI_CONFIG_DIR='{}'\nexport GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file\n",
             custom.display()
         )), "{shared}");
     }
@@ -270,7 +284,11 @@ fn assert_rejected(archive: Vec<u8>) {
 #[test]
 fn archive_entries_climbing_out_with_dot_dot_are_rejected() {
     assert_rejected(tarball(|builder| {
-        append_raw(builder, "cli-0.22.5/skills/../../evil/SKILL.md", "x");
+        append_raw(
+            builder,
+            "cli-705fb0ecac6f4249679958f6325b809b63fdde17/skills/../../evil/SKILL.md",
+            "x",
+        );
     }));
 }
 
@@ -290,9 +308,73 @@ fn symlinks_inside_skills_are_rejected() {
         builder
             .append_link(
                 &mut header,
-                "cli-0.22.5/skills/gws-meet/evil",
+                "cli-705fb0ecac6f4249679958f6325b809b63fdde17/skills/gws-meet/evil",
                 "/etc/passwd",
             )
             .unwrap();
     }));
+}
+
+#[test]
+fn the_config_folder_is_single_quoted_for_posix_shells() {
+    let fixture = Fixture::new(&[".claude"], tarball(|_| {}));
+    let custom = fixture.home.path().join("it's $HOME");
+    fixture.core.set_config_dir(Some(custom)).unwrap();
+
+    fixture.core.install_skills_for(&Selection::new()).unwrap();
+
+    let shared =
+        fs::read_to_string(fixture.skills_dir(".claude").join("gws-shared/SKILL.md")).unwrap();
+    let expected = format!(
+        "export GOOGLE_WORKSPACE_CLI_CONFIG_DIR='{}/it'\\''s $HOME'\n",
+        fixture.home.path().display()
+    );
+    assert!(shared.contains(&expected), "{shared}");
+}
+
+#[test]
+fn a_tarball_not_matching_the_pinned_checksum_is_rejected_and_nothing_is_written() {
+    let fixture = Fixture::serving(&[".claude"], HttpResponse::ok(tarball(|_| {})));
+
+    let error = fixture
+        .core
+        .install_skills_for(&Selection::new())
+        .unwrap_err();
+
+    assert!(
+        matches!(error, CoreError::ChecksumMismatch { .. }),
+        "{error:?}"
+    );
+    assert!(!fixture.skills_dir(".claude").exists());
+}
+
+#[test]
+fn skill_folders_it_did_not_install_are_skipped_untouched_and_never_removed() {
+    let fixture = Fixture::new(&[".claude"], tarball(|_| {}));
+    let dir = fixture.skills_dir(".claude");
+    fs::create_dir_all(dir.join("gws-gmail")).unwrap();
+    fs::write(dir.join("gws-gmail/SKILL.md"), "mine\n").unwrap();
+
+    let installed = fixture
+        .core
+        .install_skills_for(&Selection::from_levels([(Service::Gmail, Level::Read)]))
+        .unwrap();
+
+    assert_eq!(
+        installed[0].skills,
+        strings(&["gws-gmail-send", "gws-shared"])
+    );
+    assert_eq!(installed[0].skipped, strings(&["gws-gmail"]));
+    assert_eq!(
+        fs::read_to_string(dir.join("gws-gmail/SKILL.md")).unwrap(),
+        "mine\n"
+    );
+
+    fixture.core.install_skills_for(&Selection::new()).unwrap();
+
+    assert_eq!(folders(&dir), strings(&["gws-gmail", "gws-shared"]));
+    assert_eq!(
+        fs::read_to_string(dir.join("gws-gmail/SKILL.md")).unwrap(),
+        "mine\n"
+    );
 }

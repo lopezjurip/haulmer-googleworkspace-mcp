@@ -47,8 +47,8 @@ export type ServiceInfo = {
   write: string;
 };
 
-/** Skills written into one agent skills folder by `install_skills`. */
-export type InstalledSkills = { target: string; skills: string[] };
+/** Skills written into one agent skills folder by `install_skills`; `skipped` were left alone (not installed by this app). */
+export type InstalledSkills = { target: string; skills: string[]; skipped: string[] };
 
 /**
  * Whether a selection holds a service level.

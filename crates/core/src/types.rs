@@ -382,7 +382,11 @@ pub struct ServiceInfo {
 ///
 /// ```
 /// use haulmer_connect_core::InstalledSkills;
-/// let installed = InstalledSkills { target: "/home/ana/.claude/skills".into(), skills: vec!["gws-shared".into()] };
+/// let installed = InstalledSkills {
+///     target: "/home/ana/.claude/skills".into(),
+///     skills: vec!["gws-shared".into()],
+///     skipped: vec!["gws-gmail".into()],
+/// };
 /// assert_eq!(installed.skills, ["gws-shared"]);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -391,6 +395,9 @@ pub struct InstalledSkills {
     pub target: PathBuf,
     /// Skill folder names written there, e.g. `gws-shared`, `gws-gmail`.
     pub skills: Vec<String>,
+    /// Wanted skill folders left untouched because something other than haulmer-connect
+    /// put them there.
+    pub skipped: Vec<String>,
 }
 
 /// Every error the core returns. Serialises as its display message for the UI.

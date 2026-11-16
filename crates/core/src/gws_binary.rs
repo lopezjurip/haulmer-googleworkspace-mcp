@@ -193,7 +193,7 @@ fn parse_checksum(body: &[u8]) -> Result<String, CoreError> {
 }
 
 /// Lowercase hex SHA-256 of `bytes`.
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     Sha256::digest(bytes)
         .iter()
         .map(|byte| format!("{byte:02x}"))
