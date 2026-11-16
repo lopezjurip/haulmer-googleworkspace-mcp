@@ -11,6 +11,8 @@ impl Core {
     /// A foreign token is never revoked: with `confirm_replace` the login overwrites it.
     /// Calls `on_auth_url` with the Google sign-in URL (the caller opens the browser).
     /// Blocks until the login ends or [`Core::cancel_login`] is called ([`CoreError::Cancelled`]).
+    /// If the old access was revoked first and the login is then cancelled or fails, returns
+    /// [`CoreError::AccessRemoved`] (nothing is connected any more).
     ///
     /// # Example
     ///
@@ -43,13 +45,17 @@ impl Core {
         } else {
             self.status()?.granted
         };
-        if granted
+        let removes_a_level = granted
             .iter()
-            .any(|level| !selection.contains(level.service, level.level))
-        {
+            .any(|level| !selection.contains(level.service, level.level));
+        if removes_a_level {
             self.revoke_and_logout(&gws)?;
+            // The old access is gone: a sign-in that does not finish leaves nothing connected.
+            self.login(&gws, &selection, on_auth_url)
+                .map_err(|_| CoreError::AccessRemoved)?;
+        } else {
+            self.login(&gws, &selection, on_auth_url)?;
         }
-        self.login(&gws, &selection, on_auth_url)?;
         gws_env::write_marker(&config_dir)?;
         Ok(SaveOutcome::Connected(self.status()?))
     }

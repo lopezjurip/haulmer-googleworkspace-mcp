@@ -399,8 +399,8 @@ pub enum CoreError {
     /// The gws download failed (bad HTTP status, bad archive, missing binary).
     #[error("gws download failed: {0}")]
     Download(String),
-    /// The downloaded gws did not match its published SHA-256.
-    #[error("gws download checksum mismatch: expected {expected}, got {actual}")]
+    /// A download (gws or the skills tarball) did not match its expected SHA-256.
+    #[error("download checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: String, actual: String },
     /// gws exited non-zero; `message` is `error.message` from its JSON when present.
     #[error("gws failed (exit {exit_code}): {message}")]
@@ -414,6 +414,12 @@ pub enum CoreError {
     /// Local credentials were cleared but Google did not confirm the revocation.
     #[error("local credentials were cleared but Google revocation failed: {0}")]
     RevokeFailed(String),
+    /// `save` revoked the old access (a level was removed) but the new sign-in was
+    /// cancelled or failed: nothing is connected now.
+    #[error(
+        "Access was removed, but the new Google sign-in did not finish. Save again to reconnect."
+    )]
+    AccessRemoved,
 }
 
 impl From<std::io::Error> for CoreError {

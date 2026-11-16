@@ -1,0 +1,11 @@
+//! How errors reach the UI: their display message as a JSON string.
+
+use haulmer_connect_core::CoreError;
+
+#[test]
+fn access_removed_has_a_distinct_message_telling_the_person_to_save_again() {
+    assert_eq!(
+        serde_json::to_value(CoreError::AccessRemoved).unwrap(),
+        "Access was removed, but the new Google sign-in did not finish. Save again to reconnect."
+    );
+}

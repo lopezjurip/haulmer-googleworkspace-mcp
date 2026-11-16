@@ -352,3 +352,56 @@ fn the_login_runs_with_the_custom_folder() {
     );
     assert_eq!(login_call.command.env["NO_COLOR"], "1");
 }
+
+/// Connects Gmail + Calendar, then makes every later login answer `reply`.
+fn connected_then_login_replies(reply: FakeReply) -> Fixture {
+    let f = fixture();
+    f.save(&Selection::from_levels([
+        (Service::Gmail, Level::Read),
+        (Service::Calendar, Level::Read),
+    ]));
+    f.runner.on(&["auth", "login", "--scopes"], reply);
+    f
+}
+
+#[test]
+fn a_failed_login_after_removing_a_level_reports_that_access_was_removed() {
+    let f = connected_then_login_replies(FakeReply::exit(
+        2,
+        r#"{"error":{"code":401,"message":"Access blocked"}}"#,
+        "",
+    ));
+
+    let result = f.core.save(
+        &Selection::from_levels([(Service::Gmail, Level::Read)]),
+        false,
+        &|_| {},
+    );
+
+    assert_eq!(result, Err(CoreError::AccessRemoved));
+    assert_eq!(f.http.requests().len(), 1, "the old token was revoked");
+    assert!(!f.config_dir.join(MARKER_FILE).exists());
+}
+
+#[test]
+fn a_cancelled_login_after_removing_a_level_reports_that_access_was_removed() {
+    let f = connected_then_login_replies(
+        FakeReply::exit(0, "", &format!("  {URL}\n")).hang_until_killed(),
+    );
+    let (url_seen, url_received) = std::sync::mpsc::channel();
+
+    let result = std::thread::scope(|scope| {
+        let save = scope.spawn(|| {
+            f.core.save(
+                &Selection::from_levels([(Service::Gmail, Level::Read)]),
+                false,
+                &|_| url_seen.send(()).unwrap(),
+            )
+        });
+        url_received.recv().unwrap();
+        f.core.cancel_login().unwrap();
+        save.join().unwrap()
+    });
+
+    assert_eq!(result, Err(CoreError::AccessRemoved));
+}

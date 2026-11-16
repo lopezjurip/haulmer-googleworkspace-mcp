@@ -136,6 +136,8 @@ export default function App() {
       } else {
         setNotice({ kind: "error", text });
       }
+      // A failed save may already have removed access (e.g. a reduced selection): show the truth.
+      await refreshStatus();
     } finally {
       setBusy(null);
       setAuthUrl(null);
