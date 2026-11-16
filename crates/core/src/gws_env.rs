@@ -2,7 +2,8 @@
 
 use std::path::Path;
 
-use crate::{CommandSpec, Core, CoreError};
+use crate::oauth_client::{CLIENT_ID, CLIENT_SECRET};
+use crate::{CommandSpec, Core, CoreError, KeyStorage};
 
 /// Ownership marker written into the config folder after a successful haulmer-connect login.
 ///
@@ -13,6 +14,14 @@ use crate::{CommandSpec, Core, CoreError};
 /// ```
 pub const MARKER_FILE: &str = "haulmer-connect.json";
 
+/// Variables removed from every gws child: they would bypass the config folder's credentials
+/// (gws falls back to gcloud ADC, a credentials file or a raw token).
+const REMOVED_ENV: [&str; 3] = [
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE",
+    "GOOGLE_WORKSPACE_CLI_TOKEN",
+];
+
 impl Core {
     /// Builds the command for one gws call: `program args...` with the gws env
     /// (config folder, key backend, client id/secret, `NO_COLOR=1`, removed credential
@@ -20,14 +29,38 @@ impl Core {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// # use haulmer_connect_core::{Core, Paths};
-    /// # let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() });
+    /// # let app_data = tempfile::tempdir().unwrap();
+    /// # let core = Core::system(Paths { home: "/h".into(), app_data: app_data.path().into() });
     /// let command = core.gws_command("gws".as_ref(), &["auth", "status"]).unwrap();
+    /// assert_eq!(command.env["GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND"], "keyring");
+    /// assert!(command.cwd.ends_with("run"));
     /// ```
     pub fn gws_command(&self, program: &Path, args: &[&str]) -> Result<CommandSpec, CoreError> {
-        let _ = (program, args);
-        Err(CoreError::NotImplemented("gws_env::gws_command (T04)"))
+        let settings = self.settings()?;
+        let cwd = self.paths.app_data.join("run");
+        std::fs::create_dir_all(&cwd)?;
+
+        let mut command = CommandSpec::new(program, args, cwd);
+        let mut set = |name: &str, value: &str| {
+            command.env.insert(name.to_string(), value.to_string());
+        };
+        if let Some(dir) = &settings.config_dir {
+            set("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", &dir.to_string_lossy());
+        }
+        let backend = match settings.resolved_key_storage() {
+            KeyStorage::File => "file",
+            KeyStorage::Keyring | KeyStorage::Auto => "keyring",
+        };
+        set("GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND", backend);
+        set("GOOGLE_WORKSPACE_CLI_CLIENT_ID", CLIENT_ID);
+        set("GOOGLE_WORKSPACE_CLI_CLIENT_SECRET", CLIENT_SECRET);
+        set("NO_COLOR", "1");
+        command
+            .env_remove
+            .extend(REMOVED_ENV.iter().map(|name| name.to_string()));
+        Ok(command)
     }
 }
 
@@ -35,48 +68,57 @@ impl Core {
 ///
 /// # Example
 ///
-/// ```should_panic
+/// ```
 /// use haulmer_connect_core::gws_env::credentials_exist;
 /// assert!(!credentials_exist("/nonexistent".as_ref()));
 /// ```
 pub fn credentials_exist(config_dir: &Path) -> bool {
-    let _ = config_dir;
-    todo!("T04")
+    ["credentials.enc", "credentials.json"]
+        .iter()
+        .any(|name| config_dir.join(name).is_file())
 }
 
 /// Whether `config_dir` holds credentials not created by haulmer-connect (no marker).
 ///
 /// # Example
 ///
-/// ```should_panic
+/// ```
 /// use haulmer_connect_core::gws_env::foreign_credentials;
 /// assert!(!foreign_credentials("/nonexistent".as_ref()));
 /// ```
 pub fn foreign_credentials(config_dir: &Path) -> bool {
-    let _ = config_dir;
-    todo!("T04")
+    credentials_exist(config_dir) && !config_dir.join(MARKER_FILE).is_file()
 }
 
-/// Writes the ownership marker [`MARKER_FILE`] into `config_dir`.
+/// Writes the ownership marker [`MARKER_FILE`] into `config_dir` (created if missing).
 ///
 /// # Example
 ///
-/// ```no_run
-/// haulmer_connect_core::gws_env::write_marker("/h/.config/gws".as_ref()).unwrap();
+/// ```
+/// let dir = tempfile::tempdir().unwrap();
+/// haulmer_connect_core::gws_env::write_marker(dir.path()).unwrap();
+/// assert!(dir.path().join(haulmer_connect_core::gws_env::MARKER_FILE).is_file());
 /// ```
 pub fn write_marker(config_dir: &Path) -> Result<(), CoreError> {
-    let _ = config_dir;
-    Err(CoreError::NotImplemented("gws_env::write_marker (T04)"))
+    std::fs::create_dir_all(config_dir)?;
+    std::fs::write(
+        config_dir.join(MARKER_FILE),
+        "{\"created_by\":\"haulmer-connect\"}\n",
+    )?;
+    Ok(())
 }
 
 /// Removes the ownership marker from `config_dir` (no error if it is absent).
 ///
 /// # Example
 ///
-/// ```no_run
-/// haulmer_connect_core::gws_env::remove_marker("/h/.config/gws".as_ref()).unwrap();
+/// ```
+/// let dir = tempfile::tempdir().unwrap();
+/// haulmer_connect_core::gws_env::remove_marker(dir.path()).unwrap();
 /// ```
 pub fn remove_marker(config_dir: &Path) -> Result<(), CoreError> {
-    let _ = config_dir;
-    Err(CoreError::NotImplemented("gws_env::remove_marker (T04)"))
+    match std::fs::remove_file(config_dir.join(MARKER_FILE)) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
+        _ => Ok(()),
+    }
 }

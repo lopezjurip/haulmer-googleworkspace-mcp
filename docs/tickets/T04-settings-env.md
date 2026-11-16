@@ -1,7 +1,7 @@
 ---
 id: T04
 title: Settings and the environment for every gws call
-status: open
+status: done
 blocked_by: [T01]
 ---
 
@@ -24,7 +24,7 @@ Modules `settings` and `gws_env`.
 - Ownership marker: after a successful login the app writes `<config_dir>/haulmer-connect.json`; "foreign credentials" = credentials exist and no marker.
 
 ## Acceptance criteria
-- [ ] Custom folder → every built env has CONFIG_DIR and KEYRING_BACKEND=file (auto).
-- [ ] Default folder → no CONFIG_DIR, KEYRING_BACKEND=keyring (auto); explicit `file` / `keyring` override works.
-- [ ] Settings persist across `Core` instances.
-- [ ] Foreign-credential detection: creds without marker = true; with marker = false; none = false.
+- [x] Custom folder → every built env has CONFIG_DIR and KEYRING_BACKEND=file (auto).
+- [x] Default folder → no CONFIG_DIR, KEYRING_BACKEND=keyring (auto); explicit `file` / `keyring` override works.
+- [x] Settings persist across `Core` instances.
+- [x] Foreign-credential detection: creds without marker = true; with marker = false; none = false.
