@@ -72,12 +72,11 @@ impl Core {
             return Ok(Vec::new());
         }
         let mut skills = self.download_skills()?;
-        if let (Some(section), Some(shared)) =
-            (self.environment_section()?, skills.get_mut(SHARED_SKILL))
-        {
-            if let Some(content) = shared.get_mut(Path::new("SKILL.md")) {
-                content.extend_from_slice(section.as_bytes());
-            }
+        let shared_skill_md = skills
+            .get_mut(SHARED_SKILL)
+            .and_then(|shared| shared.get_mut(Path::new("SKILL.md")));
+        if let (Some(section), Some(content)) = (self.environment_section()?, shared_skill_md) {
+            content.extend_from_slice(section.as_bytes());
         }
         let wanted: BTreeMap<&String, &SkillFiles> = skills
             .iter()
