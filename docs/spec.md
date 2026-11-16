@@ -88,14 +88,19 @@ No Haulmer server is involved. Tokens never leave the person's machine.
   - `save(selection)`: maps the selection to scopes, revokes first if any previously granted level was removed, then runs the `gws` login with the new scope set.
   - `revoke_all()`: revokes the refresh token at Google's revoke endpoint, then runs `gws auth logout`.
   - Plus `install_skills()` for the agents button and `set_config_dir(path)` for the Advanced setting.
+- **Running `gws`:** every call runs with a cwd the app controls (gws loads `.env` from its cwd), stdin closed, and `NO_COLOR=1`.
+- **Login flow:** gws v0.22.5 prints the Google sign-in URL to stderr (stdout when a proxy env var is set) and does **not** open the browser. The core reads the first `https://accounts.google.com/` line from either stream and opens it with the system browser. gws waits for the loopback callback with no timeout, so the UI has a **Cancel** button that kills the process. Exit 0 prints a success JSON; exit 1-5 prints `{"error":{...}}` (2 = auth, 3 = validation).
+- **Status:** `status()` reads `gws auth status` (JSON: `user`, `scopes`, `token_valid`, `encrypted_credentials_exists`), because the `scopes` printed by login are the requested scopes, not the granted ones.
 - **Engine:** the Google Workspace CLI (`gws`, github.com/googleworkspace/cli), pinned to **v0.22.5**. `gws` does the OAuth login, stores credentials encrypted (AES-256-GCM, key in the OS keyring), refreshes tokens, and provides the commands and skills agents use. The app passes the shared client through `GOOGLE_WORKSPACE_CLI_CLIENT_ID` and `GOOGLE_WORKSPACE_CLI_CLIENT_SECRET`, and the config folder through `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` when it is not the default.
 - **Getting `gws`:** if the pinned `gws` is not on the machine, the core downloads the release asset for the platform from GitHub Releases, verifies it against the published `.sha256` file, and stores it in the app's data folder. A checksum mismatch stops the flow with an error. The app never runs an unverified binary.
-- **Revocation:** `gws auth logout` only deletes local files, so the core also calls Google's revoke endpoint (`https://oauth2.googleapis.com/revoke`). Revoking a token revokes the whole grant.
+- **Revocation:** `gws auth logout` only deletes local files, so the core also calls Google's revoke endpoint (`https://oauth2.googleapis.com/revoke`). Revoking a token revokes the whole grant. The core gets the refresh token from `gws auth export --unmasked` (JSON field `refresh_token`), POSTs `token=<refresh_token>`, then runs `gws auth logout`. Each new login replaces the stored token without revoking the old one, which is why `save` revokes first when it removes a level.
+- **`gws` release assets (v0.22.5):** `google-workspace-cli-aarch64-apple-darwin.tar.gz`, `google-workspace-cli-x86_64-apple-darwin.tar.gz`, `google-workspace-cli-x86_64-pc-windows-msvc.zip`, each with `<asset>.sha256` holding `<hex>  <filename>` (the Windows file ends in CRLF). The binary is at the archive root (`gws` / `gws.exe`).
 - **Removing one service:** Google cannot revoke a single scope. When the new selection removes any granted level, `save` revokes everything and then signs in again with the reduced set (the UI shows a subtle note about the extra sign-in).
 
 ### OAuth client
 
 - One shared OAuth client, type **Desktop app**, audience **Internal** (haulmer.com only), in a dedicated Google Cloud project `haulmer-connect` with two owners. It is marked as a client for an AI-powered agent.
+- **Created 2026-11-16:** project `haulmer-connect` (number 252304543508), client ID `252304543508-fu07n7mngakrpuvmvdo28rek975lkccn.apps.googleusercontent.com`. Second owner: pending. gws uses no PKCE and sends the client secret, so the client must stay a Desktop client.
 - The client is a public client (RFC 6749 §2.1, RFC 8252). Its client ID and secret ship inside the app and in the public repository; they are not treated as secrets (RFC 8252 §8.5). Only haulmer.com accounts can consent, and a Desktop client only redirects to loopback.
 - APIs enabled in the project: Gmail, Calendar, Drive, Chat, Meet, People. A Chat app must be configured once in the project for Chat write access.
 - Internal apps need no Google verification. If the Workspace admin restricts high-risk scopes (Gmail, Drive, Chat), the admin must mark this client as trusted.
@@ -109,8 +114,10 @@ The core owns the mapping from the person's selection to scopes. All scopes are 
 | Gmail | `gmail.readonly` | `gmail.send`, `gmail.modify` | Read |
 | Calendar | `calendar.readonly` | `calendar.events` | Read |
 | Chat | `chat.spaces.readonly`, `chat.messages.readonly`, `chat.memberships.readonly` | `chat.messages` | Read |
-| Meet | `meetings.space.readonly` (+ transcripts scope, see Further Notes) | `meetings.space.created` | Read |
-| Drive | `drive.readonly` | `drive` (see Further Notes) | none |
+| Meet | `meetings.space.readonly` (also covers transcript entries) | `meetings.space.created` | Read |
+| Drive | `drive.readonly` | `drive` | none |
+
+Scopes are passed to `gws auth login --scopes` as **full URLs, comma-separated** (gws does not expand short names). gws always adds `openid`, `userinfo.email` and `userinfo.profile`; the core ignores these three when it compares granted levels.
 
 Write always implies Read for the same service.
 
@@ -119,11 +126,15 @@ Write always implies Read for the same service.
 - Default: the `gws` default folder (`~/.config/gws`), so agents and `gws` skills work with zero setup.
 - If credentials already exist there and were not created by `haulmer-connect`, the app asks before replacing them. "No" leaves them untouched.
 - The folder is configurable under **Advanced** and persisted by the app. When it is not the default, the app passes it to every `gws` call and writes it into the installed skills.
+- **Key storage** (`GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND`): configurable under **Advanced** as `auto` (default), `keyring` or `file`. `auto` means `keyring` for the default folder and `file` for a custom folder. Reason: with `keyring`, gws v0.22.5 keeps one keychain item (service `gws-cli`, account `$USER`) for every config folder, so a custom folder can collide with another gws setup on the same machine. The resolved backend is passed to every `gws` call and written into the installed skills.
+- "Credentials exist" means `<dir>/credentials.enc` or `<dir>/credentials.json` exists.
 
 ### Agents
 
 - Agents use `gws` commands and the `gws` skills from the pinned `gws` release.
 - **Install in my agents** copies the `gws` shared skill plus the skills for the enabled services into the agent skill folders it finds: the Claude Code user skills folder and the shared `~/.agents/skills` folder.
+- Skill source: the `skills/` folder of the gws repository tarball at tag `v0.22.5` (`https://github.com/googleworkspace/cli/archive/refs/tags/v0.22.5.tar.gz`). Skills are not in the release assets, and `gws generate-skills` is not pinned. Per service: `gws-shared` always; `gws-gmail*`, `gws-calendar*`, `gws-chat*`, `gws-meet`, `gws-drive*`. Skills are installed as siblings (each one reads `../gws-shared/SKILL.md`).
+- When the config folder or key storage is not the default, the installed `gws-shared/SKILL.md` gets an "Environment" section that tells agents to export `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` and `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` before every `gws` call. No wrapper on PATH.
 - Accepted risk: any agent that can run `gws` can also run `gws auth export --unmasked` and read the refresh token. This is accepted for the pilot and must be reviewed before company-wide rollout.
 
 ### Distribution
@@ -140,14 +151,16 @@ Every dependency was checked for deprecation, last release, popularity and known
 - tauri 2.12.6 (113k stars, release 2026-11-16; all recorded advisories fixed in earlier versions)
 - React 19.3.1, Vite 8.3.8, Tailwind CSS 4.3.5: active, 0 known vulnerabilities in the current version
 - gws 0.22.5: 32k stars, 0 known vulnerabilities; README states it is **not an officially supported Google product**; last release March 2026
-- Rejected: `arctic` (deprecated), `googleapis` npm (246 MB), `tiny_http` (no release since 2022)
+- Rust crates approved by the owner 2026-11-16 (crates.io + osv.dev checked that day; 0 advisories, none yanked): serde 1.0.229, serde_json 1.0.154, thiserror 2.0.21, sha2 0.11.1, ureq 3.5.2, flate2 1.1.11, tar 0.4.46, zip 9.6.1, tauri-plugin-opener 2.7.3, tauri-plugin-dialog 2.8.4; dev: tempfile 3.27.0. npm: @tauri-apps/api 2.12.5, @tauri-apps/plugin-opener 2.7.3, @tauri-apps/plugin-dialog 2.8.4. Any other dependency needs the same check and the owner's OK.
+- Rejected: `reqwest` (21 dependencies, async; `ureq` is enough behind the HTTP port), `hex` (inline hex encoding instead), `arctic` (deprecated), `googleapis` npm (246 MB), `tiny_http` (no release since 2022)
 
 ## Testing Decisions
 
 - **Good tests check external behaviour only:** what the person sees and what the app does to the outside world (which `gws` commands run with which arguments and environment, which HTTP calls go to Google, which files are written). They do not check internal functions or data structures.
-- **One seam (proposed, confirm before implementing):** the public Rust core API (`status`, `save`, `revoke_all`, `install_skills`, `set_config_dir`) with two injected ports:
+- **One seam (confirmed by the owner 2026-11-16):** the public Rust core API (`status`, `save`, `revoke_all`, `install_skills`, `set_config_dir`) with two injected ports:
   - a **process runner** for `gws` (a fake records the command, arguments and environment, and returns canned output and exit codes);
   - an **HTTP client** for the `gws` download, the checksum file and the revoke call (a fake returns canned responses).
+  - a **real filesystem in a temp dir**: the home folder, the config folder and the app data folder are paths injected into the core, so tests check written files directly.
   Tests call the core API exactly as the Tauri commands do. The Tauri layer and the React UI stay thin enough that they need no tests in the pilot.
 - **Behaviours to cover:**
   - selection → scopes mapping, including "Write implies Read" and the defaults;
@@ -183,15 +196,19 @@ Every dependency was checked for deprecation, last release, popularity and known
   4. No token leaves the machine; the grants appear in the Workspace Admin console OAuth log.
 - Not covered by the pilot: Windows and a non-technical person. Test both before company-wide rollout.
 
-### Facts to verify during implementation (spike first)
+### Verified facts (spike 2026-11-16, gws v0.22.5 source + probes)
 
-1. Whether `gws auth login` uses PKCE with a loopback redirect.
-2. Whether `gws auth login --scopes` takes full scope URLs or short names, and whether it can run without a terminal (from the app) once the browser opens.
-3. Whether `gws` stores the client ID and secret with the credentials, or needs the environment variables on every call (if so, agents need them too).
-4. Which scopes Meet needs to read transcripts: `meetings.space.readonly` alone, or also `drive.meet.readonly` (restricted).
-5. Drive Write: `drive` (full) or `drive.file` (only files the app created).
-6. Whether the Workspace admin must mark the client as trusted for Gmail, Drive and Chat scopes.
-7. Whether `gws auth status` reports the granted scopes, so `status()` can read them instead of keeping its own record.
+1. Login uses a loopback redirect (`http://localhost:<random port>`, bound on 127.0.0.1) and **no PKCE**.
+2. `--scopes` takes full URLs, comma-separated. With `--scopes`, login never prompts and never reads stdin. gws prints the sign-in URL and does not open the browser.
+3. The client ID and secret are only needed for the first login: gws stores them in `client_secret.json` and inside `credentials.enc`. Agents do not need the env vars.
+4. Meet transcripts: `meetings.space.readonly` covers listing transcripts and reading their entries. `drive.meet.readonly` is only for downloading the Docs file or recording. Not added.
+5. Drive Write is `drive`. `drive.file` needs a file picker, so an agent could only touch files gws created.
+6. The admin must trust the client ("Trust internal apps" or trust this client ID) only if Gmail, Drive or Chat are restricted in the Admin console. `chat.spaces.readonly` and `chat.memberships.readonly` are not high-risk.
+7. `gws auth status` returns JSON with `user` and the granted `scopes`, read live from Google.
+8. Still unverified (needs the real pilot login): the live `auth status` and login success JSON.
+9. Admin console item for the pilot: ask the Workspace admin to tick "Trust internal apps" or trust client `252304543508-fu07n7mngakrpuvmvdo28rek975lkccn.apps.googleusercontent.com` if a restriction blocks the login.
+
+Full notes with source links: `docs/research/gws-spike.md`.
 
 ### Known limits
 
