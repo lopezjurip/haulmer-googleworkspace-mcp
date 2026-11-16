@@ -122,11 +122,12 @@ export default function App() {
         outcome = await invoke<SaveOutcome>("save", { selection, confirmReplace: true });
       }
       if (outcome.kind === "connected") {
-        const account = outcome.status.account ?? "your account";
+        const account = outcome.status.account;
         setStatus(outcome.status);
         setStatusError(null);
         setSelection(outcome.status.granted);
-        setNotice({ kind: "success", text: `Saved. Connected as ${account}.` });
+        const text = account === null ? "Saved. All access removed." : `Saved. Connected as ${account}.`;
+        setNotice({ kind: "success", text });
       }
     } catch (error) {
       const text = ERROR_TEXT(error);
@@ -368,7 +369,7 @@ export default function App() {
             <button
               type="button"
               className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
-              disabled={disabled || selection.length === 0}
+              disabled={disabled || (selection.length === 0 && !status?.account)}
               onClick={handleSave}
             >
               Save

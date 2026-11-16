@@ -1,7 +1,7 @@
 ---
 id: T07
 title: save(): connect, add and remove services
-status: open
+status: done
 blocked_by: [T02, T05, T06]
 ---
 
@@ -20,8 +20,8 @@ Module `save`: `Core::save(selection, confirm_replace, on_auth_url)` and `Core::
 - Login: spawn `gws auth login --scopes <full URLs>` with the T04 env and stdin closed; read stdout + stderr lines; on the first `https://accounts.google.com/` URL call `on_auth_url(url)` (the Tauri layer opens the browser); wait for exit. Exit 0 → write the ownership marker and return `Connected(status())`. Non-zero → error with gws `error.message`. `cancel_login()` kills the running login.
 
 ## Acceptance criteria
-- [ ] Add-only save: one login with the full new scope set, no revoke call.
-- [ ] Remove a level: revoke + logout before login with the reduced set.
-- [ ] Foreign credentials + no confirmation → `NeedsReplaceConfirmation` and the runner only saw read-only calls.
-- [ ] Auth URL forwarded from stderr and from stdout; cancel kills the process and returns a cancelled error.
-- [ ] Custom folder env on the login call.
+- [x] Add-only save: one login with the full new scope set, no revoke call.
+- [x] Remove a level: revoke + logout before login with the reduced set.
+- [x] Foreign credentials + no confirmation → `NeedsReplaceConfirmation` and the runner only saw read-only calls.
+- [x] Auth URL forwarded from stderr and from stdout; cancel kills the process and returns a cancelled error.
+- [x] Custom folder env on the login call.
