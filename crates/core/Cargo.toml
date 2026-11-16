@@ -1,0 +1,23 @@
+[package]
+name = "haulmer-connect-core"
+description = "Core behaviour of haulmer-connect: selection, gws login, status, revoke and skills."
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[lib]
+name = "haulmer_connect_core"
+
+[features]
+# Exposes the `testing` module (FakeRunner, FakeHttp) to integration tests and other crates.
+testing = []
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+
+[dev-dependencies]
+# Self dev-dependency: turns on the `testing` feature for this crate's integration tests.
+haulmer-connect-core = { path = ".", features = ["testing"] }
+tempfile = "3.27.0"

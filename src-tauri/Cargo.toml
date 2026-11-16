@@ -1,0 +1,20 @@
+[package]
+name = "haulmer-connect"
+description = "Desktop app that connects AI agents to Google Workspace through gws."
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[lib]
+# The `_lib` suffix keeps the lib name distinct from the bin name (cargo issue #8519 on Windows).
+name = "haulmer_connect_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.5", features = [] }
+
+[dependencies]
+haulmer-connect-core = { path = "../crates/core" }
+tauri = { version = "2.12.6", features = [] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
