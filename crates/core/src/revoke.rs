@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
-use crate::gws_env::{credentials_exist, remove_marker};
-use crate::{Core, CoreError};
+use crate::gws_env::{credentials_exist, foreign_credentials, remove_marker};
+use crate::{Core, CoreError, RevokeOutcome};
 
 /// Google's OAuth token revocation endpoint.
 ///
@@ -20,26 +20,37 @@ impl Core {
     /// If Google fails (or the token cannot be read), still clears local state and returns
     /// [`CoreError::RevokeFailed`]. Without credentials it only logs out. Never downloads
     /// gws when there is nothing to revoke: no gws and no credentials is a success.
+    /// Credentials created by another app (no ownership marker) are only touched with
+    /// `confirm_foreign`; without it nothing runs and the result is
+    /// [`RevokeOutcome::NeedsForeignConfirmation`].
     ///
     /// # Example
     ///
     /// ```no_run
-    /// # use haulmer_connect_core::{Core, Paths};
+    /// # use haulmer_connect_core::{Core, Paths, RevokeOutcome};
     /// # let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() });
-    /// core.revoke_all().unwrap();
+    /// if core.revoke_all(false).unwrap() == RevokeOutcome::NeedsForeignConfirmation {
+    ///     // ask the person, then:
+    ///     core.revoke_all(true).unwrap();
+    /// }
     /// ```
-    pub fn revoke_all(&self) -> Result<(), CoreError> {
+    pub fn revoke_all(&self, confirm_foreign: bool) -> Result<RevokeOutcome, CoreError> {
+        let config_dir = self.settings()?.active_config_dir(&self.paths);
+        if foreign_credentials(&config_dir) && !confirm_foreign {
+            return Ok(RevokeOutcome::NeedsForeignConfirmation);
+        }
         let gws = match self.find_gws()? {
             Some(gws) => gws,
             None => {
-                let config_dir = self.settings()?.active_config_dir(&self.paths);
                 if !credentials_exist(&config_dir) {
-                    return remove_marker(&config_dir);
+                    remove_marker(&config_dir)?;
+                    return Ok(RevokeOutcome::Revoked);
                 }
                 self.ensure_gws()?
             }
         };
-        self.revoke_and_logout(&gws)
+        self.revoke_and_logout(&gws)?;
+        Ok(RevokeOutcome::Revoked)
     }
 
     /// The body of [`Core::revoke_all`] for a caller that already resolved gws: `save` (T07)

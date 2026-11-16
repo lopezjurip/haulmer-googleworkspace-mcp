@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use haulmer_connect_core::gws_env::{MARKER_FILE, write_marker};
 use haulmer_connect_core::revoke::REVOKE_URL;
 use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner, HttpRequest};
-use haulmer_connect_core::{Core, CoreError, HttpResponse, Paths};
+use haulmer_connect_core::{Core, CoreError, HttpResponse, Paths, RevokeOutcome};
 use tempfile::TempDir;
 
 const TOKEN: &str = "1//refresh-token-secret";
@@ -101,7 +101,7 @@ fn exports_revokes_the_refresh_token_then_logs_out() {
     f.sign_in();
     f.http.on(REVOKE_URL, HttpResponse::ok("{}"));
 
-    f.core.revoke_all().unwrap();
+    assert_eq!(f.core.revoke_all(false).unwrap(), RevokeOutcome::Revoked);
 
     assert_eq!(
         f.gws_calls(),
@@ -125,7 +125,7 @@ fn google_rejecting_the_revoke_still_logs_out_and_reports_it() {
         HttpResponse::new(400, r#"{"error":"invalid_token"}"#),
     );
 
-    let error = f.core.revoke_all().unwrap_err();
+    let error = f.core.revoke_all(false).unwrap_err();
 
     assert!(matches!(error, CoreError::RevokeFailed(_)), "{error:?}");
     assert!(!error.to_string().contains(TOKEN));
@@ -140,7 +140,7 @@ fn google_unreachable_still_logs_out_and_reports_it() {
     f.http
         .on_error(REVOKE_URL, CoreError::Http("offline".into()));
 
-    let error = f.core.revoke_all().unwrap_err();
+    let error = f.core.revoke_all(false).unwrap_err();
 
     assert!(matches!(error, CoreError::RevokeFailed(_)), "{error:?}");
     assert!(error.to_string().contains("local credentials were cleared"));
@@ -152,7 +152,7 @@ fn google_unreachable_still_logs_out_and_reports_it() {
 fn without_credentials_only_logs_out() {
     let f = fixture();
 
-    f.core.revoke_all().unwrap();
+    assert_eq!(f.core.revoke_all(false).unwrap(), RevokeOutcome::Revoked);
 
     assert_eq!(f.gws_calls(), [vec!["auth", "logout"]]);
     assert!(f.http.requests().is_empty());
@@ -167,7 +167,7 @@ fn unreadable_credentials_still_log_out_and_report_it() {
         "Error: failed to decrypt credentials",
     ));
 
-    let error = f.core.revoke_all().unwrap_err();
+    let error = f.core.revoke_all(false).unwrap_err();
 
     assert!(matches!(error, CoreError::RevokeFailed(_)), "{error:?}");
     assert!(f.http.requests().is_empty());
@@ -185,7 +185,7 @@ fn without_gws_and_credentials_does_nothing_and_downloads_nothing() {
     // No reply for `--version`: gws cannot start.
     let core = Core::new(paths, Arc::new(FakeRunner::new()), http.clone());
 
-    core.revoke_all().unwrap();
+    assert_eq!(core.revoke_all(false).unwrap(), RevokeOutcome::Revoked);
 
     assert!(http.requests().is_empty());
 }
@@ -196,7 +196,7 @@ fn every_gws_call_uses_the_custom_folder() {
     f.sign_in();
     f.http.on(REVOKE_URL, HttpResponse::ok("{}"));
 
-    f.core.revoke_all().unwrap();
+    assert_eq!(f.core.revoke_all(false).unwrap(), RevokeOutcome::Revoked);
 
     let gws_calls: Vec<_> = f
         .runner
@@ -211,4 +211,38 @@ fn every_gws_call_uses_the_custom_folder() {
             f.config_dir.to_str().unwrap()
         );
     }
+}
+
+impl Fixture {
+    /// Credentials created by another app: no ownership marker.
+    fn foreign_sign_in(&self) {
+        self.sign_in();
+        std::fs::remove_file(self.config_dir.join(MARKER_FILE)).unwrap();
+    }
+}
+
+#[test]
+fn foreign_credentials_without_confirmation_ask_first_and_run_nothing() {
+    let f = fixture();
+    f.foreign_sign_in();
+
+    let outcome = f.core.revoke_all(false).unwrap();
+
+    assert_eq!(outcome, RevokeOutcome::NeedsForeignConfirmation);
+    assert!(f.runner.calls().is_empty());
+    assert!(f.http.requests().is_empty());
+    assert!(f.config_dir.join("credentials.enc").exists());
+}
+
+#[test]
+fn confirmed_foreign_credentials_are_revoked_and_logged_out() {
+    let f = fixture();
+    f.foreign_sign_in();
+    f.http.on(REVOKE_URL, HttpResponse::ok("{}"));
+
+    let outcome = f.core.revoke_all(true).unwrap();
+
+    assert_eq!(outcome, RevokeOutcome::Revoked);
+    assert_eq!(f.http.requests(), [revoke_post()]);
+    assert!(f.signed_out());
 }

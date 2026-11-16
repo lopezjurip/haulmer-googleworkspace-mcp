@@ -9,6 +9,7 @@ import {
   TOGGLE_LEVEL,
   type InstalledSkills,
   type KeyStorage,
+  type RevokeOutcome,
   type SaveOutcome,
   type Selection,
   type ServiceInfo,
@@ -175,8 +176,21 @@ export default function App() {
     setBusy("revoke");
     setNotice(null);
     try {
-      await invoke("revoke_all");
-      setNotice({ kind: "success", text: "All access was revoked." });
+      let outcome = await invoke<RevokeOutcome>("revoke_all", { confirmForeign: false });
+      if (outcome.kind === "needs_foreign_confirmation") {
+        const revokeForeign = await ask(
+          "These gws credentials were created by another app. Revoke them anyway?",
+          { title: "Revoke all", kind: "warning", okLabel: "Yes", cancelLabel: "No" },
+        );
+        if (!revokeForeign) {
+          setNotice({ kind: "info", text: "Nothing was revoked." });
+          return;
+        }
+        outcome = await invoke<RevokeOutcome>("revoke_all", { confirmForeign: true });
+      }
+      if (outcome.kind === "revoked") {
+        setNotice({ kind: "success", text: "All access was revoked." });
+      }
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
     } finally {

@@ -35,7 +35,8 @@ impl Core {
         let selection = scopes::normalize(selection);
         if selection.is_empty() {
             if !foreign {
-                self.revoke_all()?;
+                // Own credentials only (checked above), so no confirmation is involved.
+                self.revoke_all(false)?;
             }
             return Ok(SaveOutcome::Connected(self.status()?));
         }

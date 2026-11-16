@@ -36,6 +36,9 @@ export type SaveOutcome =
   | { kind: "connected"; status: Status }
   | { kind: "needs_replace_confirmation" };
 
+/** Result of the `revoke_all` command. */
+export type RevokeOutcome = { kind: "revoked" } | { kind: "needs_foreign_confirmation" };
+
 /** Plain-language labels for one service row. */
 export type ServiceInfo = {
   service: Service;

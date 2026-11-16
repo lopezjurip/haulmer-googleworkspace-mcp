@@ -4,8 +4,8 @@
 use std::path::PathBuf;
 
 use haulmer_connect_core::{
-    Core, CoreError, InstalledSkills, KeyStorage, Paths, SaveOutcome, Selection, ServiceInfo,
-    Status, scopes,
+    Core, CoreError, InstalledSkills, KeyStorage, Paths, RevokeOutcome, SaveOutcome, Selection,
+    ServiceInfo, Status, scopes,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
@@ -59,16 +59,16 @@ fn cancel_login(core: State<'_, Core>) -> Result<(), CoreError> {
     core.cancel_login()
 }
 
-/// `Core::revoke_all`.
+/// `Core::revoke_all`; `confirmForeign` allows revoking credentials created by another app.
 ///
 /// # Example
 ///
 /// ```js
-/// await invoke("revoke_all");
+/// const outcome = await invoke("revoke_all", { confirmForeign: false });
 /// ```
 #[tauri::command(async)]
-fn revoke_all(core: State<'_, Core>) -> Result<(), CoreError> {
-    core.revoke_all()
+fn revoke_all(core: State<'_, Core>, confirm_foreign: bool) -> Result<RevokeOutcome, CoreError> {
+    core.revoke_all(confirm_foreign)
 }
 
 /// `Core::install_skills`.

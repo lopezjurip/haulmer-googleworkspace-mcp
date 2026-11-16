@@ -335,6 +335,27 @@ pub enum SaveOutcome {
     NeedsReplaceConfirmation,
 }
 
+/// Result of `Core::revoke_all`.
+///
+/// # Example
+///
+/// ```
+/// use haulmer_connect_core::RevokeOutcome;
+/// assert_eq!(
+///     serde_json::to_string(&RevokeOutcome::NeedsForeignConfirmation).unwrap(),
+///     r#"{"kind":"needs_foreign_confirmation"}"#
+/// );
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RevokeOutcome {
+    /// Access was revoked and local credentials cleared.
+    Revoked,
+    /// The credentials were created by another app; nothing ran. Ask "Revoke them anyway?"
+    /// and call `revoke_all` again with `confirm_foreign = true`.
+    NeedsForeignConfirmation,
+}
+
 /// Plain-language labels for one service row of the UI (built by `scopes::catalogue`).
 ///
 /// # Example
