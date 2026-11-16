@@ -42,3 +42,29 @@ pnpm build                 # type-check and build the UI
 Core tests drive the public `Core` API with the shared test doubles in
 `haulmer_connect_core::testing` (`FakeRunner`, `FakeHttp`), enabled for integration tests by
 the `testing` feature.
+
+## Release
+
+CI (`.github/workflows/ci.yml`) runs `cargo test --workspace` and `pnpm build` on every pull
+request and push to `main`. Pushing a `v*` tag runs `.github/workflows/release.yml`, which
+builds a Windows x64 NSIS installer (`.exe`) and macOS `.dmg` files for Apple Silicon
+(`aarch64`) and Intel (`x64`), writes a `.sha256` file per installer plus `SHA256SUMS.txt`,
+and attaches them to a **draft** GitHub Release.
+
+To cut a release:
+
+1. Bump `version` to the same value in `package.json`, `Cargo.toml` (`workspace.package`) and
+   `src-tauri/tauri.conf.json`; merge to `main`. The release workflow fails if the tag does not
+   match `tauri.conf.json`.
+2. Tag and push:
+   ```sh
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+3. Wait for the **Release** workflow, then review the draft under GitHub → Releases and
+   publish it.
+
+Builds are **not code-signed** (pilot). macOS users must right-click → Open the first time
+(or run `xattr -dr com.apple.quarantine /Applications/haulmer-connect.app`); Windows
+SmartScreen needs **More info → Run anyway**. Users can verify a download with
+`shasum -a 256 -c <file>.sha256` (macOS) or `Get-FileHash <file>` (PowerShell).
