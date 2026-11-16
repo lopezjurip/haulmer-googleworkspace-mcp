@@ -17,6 +17,10 @@
 //! | [`save`] | T07 | `Core::save`, `Core::cancel_login` |
 //! | [`skills`] | T08 | `Core::install_skills` |
 //!
+//! Conventions for those tickets: put tests in `crates/core/tests/<module>.rs` using
+//! `testing::FakeRunner`, `testing::FakeHttp` and temp dirs; drop the `should_panic`
+//! marker from a stub's doc example once it is implemented.
+//!
 //! # Example
 //!
 //! ```no_run
