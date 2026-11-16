@@ -1,7 +1,7 @@
 ---
 id: T05
 title: status(): what is connected
-status: open
+status: done
 blocked_by: [T02, T03, T04]
 ---
 
