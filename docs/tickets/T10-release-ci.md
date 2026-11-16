@@ -1,7 +1,7 @@
 ---
 id: T10
 title: CI builds and GitHub Releases
-status: open
+status: done
 blocked_by: [T01]
 ---
 
