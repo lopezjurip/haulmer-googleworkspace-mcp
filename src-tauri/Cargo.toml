@@ -16,3 +16,5 @@ tauri-build = { version = "2.7.5", features = [] }
 [dependencies]
 haulmer-connect-core = { path = "../crates/core" }
 tauri = { version = "2.12.6", features = [] }
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-opener = "2.7.3"
