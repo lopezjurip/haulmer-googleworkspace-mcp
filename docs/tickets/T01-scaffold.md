@@ -1,7 +1,7 @@
 ---
 id: T01
 title: Scaffold the app and the core seam
-status: open
+status: done
 blocked_by: []
 ---
 
@@ -28,6 +28,6 @@ The empty, compiling project that every other ticket fills in.
 - `.gitignore` for Rust, Node, Tauri.
 
 ## Acceptance criteria
-- [ ] `cargo test --workspace` passes (one smoke test that builds `Core` with fakes and temp dirs).
-- [ ] `pnpm install && pnpm build` builds the UI; `cargo check -p src-tauri` (or the package name) passes.
-- [ ] The public contract above exists in `crates/core/src/lib.rs`.
+- [x] `cargo test --workspace` passes (one smoke test that builds `Core` with fakes and temp dirs).
+- [x] `pnpm install && pnpm build` builds the UI; `cargo check -p src-tauri` (or the package name) passes.
+- [x] The public contract above exists in `crates/core/src/lib.rs`.
