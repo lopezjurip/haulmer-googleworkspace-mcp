@@ -73,6 +73,13 @@ impl Core {
 
     /// Runs `gws auth login --scopes <urls>`, forwards the first sign-in URL and waits.
     /// [`Core::cancel_login`] taking the killer while it runs means it was cancelled.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let gws = self.ensure_gws()?;
+    /// self.login(&gws, &selection, &|url| println!("open {url}"))?;
+    /// ```
     fn login(
         &self,
         gws: &Path,
@@ -110,22 +117,21 @@ impl Core {
         }
         Err(CoreError::Gws {
             exit_code,
-            message: gws_error_message(&stdout),
+            message: gws_env::gws_error_message(&stdout, &stdout),
         })
     }
 }
 
 /// The Google sign-in URL in a gws output line, without the surrounding text.
+///
+/// # Example
+///
+/// ```ignore
+/// let line = "  https://accounts.google.com/o/oauth2/auth?x=1 (open it)";
+/// assert_eq!(auth_url(line), Some("https://accounts.google.com/o/oauth2/auth?x=1"));
+/// assert_eq!(auth_url("Waiting..."), None);
+/// ```
 fn auth_url(line: &str) -> Option<&str> {
     let start = line.find("https://accounts.google.com/")?;
     line[start..].split_whitespace().next()
-}
-
-/// `error.message` from gws's JSON error on stdout, else the trimmed stdout.
-fn gws_error_message(stdout: &str) -> String {
-    let json: serde_json::Value = serde_json::from_str(stdout).unwrap_or_default();
-    match json["error"]["message"].as_str() {
-        Some(message) => message.to_string(),
-        None => stdout.trim().to_string(),
-    }
 }

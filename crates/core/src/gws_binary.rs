@@ -6,7 +6,8 @@ use std::path::{Component, Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::{CommandSpec, Core, CoreError};
+use crate::ports::download;
+use crate::{Core, CoreError};
 
 /// The only gws version the app runs.
 ///
@@ -54,9 +55,11 @@ pub fn release_asset() -> Option<&'static str> {
 }
 
 impl Core {
-    /// The pinned gws to run, without downloading: `gws` on PATH if it reports
-    /// [`GWS_VERSION`], else `<app_data>/bin/gws[.exe]` if it does; `None` otherwise.
-    /// Never makes HTTP calls.
+    /// The pinned gws to run, without downloading. Checks, in order, the first that
+    /// reports [`GWS_VERSION`]: `gws` on PATH; on Unix the usual install folders
+    /// `/opt/homebrew/bin/gws`, `/usr/local/bin/gws`, `<home>/.cargo/bin/gws` and
+    /// `<home>/.local/bin/gws` (only those that exist); then `<app_data>/bin/gws[.exe]`.
+    /// `None` otherwise. Never makes HTTP calls.
     ///
     /// # Example
     ///
@@ -67,12 +70,15 @@ impl Core {
     /// ```
     pub fn find_gws(&self) -> Result<Option<PathBuf>, CoreError> {
         let on_path = PathBuf::from("gws");
-        if self.is_pinned(&on_path) {
+        if self.is_pinned(&on_path)? {
             return Ok(Some(on_path));
         }
-        let local = self.local_gws();
-        if local.is_file() && self.is_pinned(&local) {
-            return Ok(Some(local));
+        let mut candidates = self.well_known_gws();
+        candidates.push(self.local_gws());
+        for candidate in candidates {
+            if candidate.is_file() && self.is_pinned(&candidate)? {
+                return Ok(Some(candidate));
+            }
         }
         Ok(None)
     }
@@ -98,8 +104,11 @@ impl Core {
                 std::env::consts::ARCH
             ))
         })?;
-        let expected = parse_checksum(&self.download(&format!("{RELEASE_URL}/{asset}.sha256"))?)?;
-        let archive = self.download(&format!("{RELEASE_URL}/{asset}"))?;
+        let expected = parse_checksum(&download(
+            self.http.as_ref(),
+            &format!("{RELEASE_URL}/{asset}.sha256"),
+        )?)?;
+        let archive = download(self.http.as_ref(), &format!("{RELEASE_URL}/{asset}"))?;
         let actual = sha256_hex(&archive);
         if actual != expected {
             return Err(CoreError::ChecksumMismatch { expected, actual });
@@ -115,37 +124,57 @@ impl Core {
     }
 
     /// Where a downloaded gws lives: `<app_data>/bin/gws[.exe]`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// assert!(self.local_gws().starts_with(&self.paths.app_data));
+    /// ```
     fn local_gws(&self) -> PathBuf {
         self.paths.app_data.join("bin").join(BINARY_NAME)
     }
 
-    /// Whether `program --version` starts with `gws <GWS_VERSION>`; a program that
-    /// cannot start counts as not pinned.
-    fn is_pinned(&self, program: &Path) -> bool {
-        let command = CommandSpec::new(program, &["--version"], &self.paths.home);
-        match self.runner.run(&command) {
-            Ok(output) => {
-                output.exit_code == 0
-                    && output.stdout.lines().next().map(str::trim)
-                        == Some(format!("gws {GWS_VERSION}").as_str())
-            }
-            Err(_) => false,
+    /// Usual install locations of gws outside PATH (Homebrew, cargo, pipx-style); none on Windows.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // with home = /Users/ana on macOS:
+    /// // [/opt/homebrew/bin/gws, /usr/local/bin/gws, /Users/ana/.cargo/bin/gws, /Users/ana/.local/bin/gws]
+    /// let candidates = self.well_known_gws();
+    /// ```
+    fn well_known_gws(&self) -> Vec<PathBuf> {
+        if cfg!(unix) {
+            vec![
+                PathBuf::from("/opt/homebrew/bin/gws"),
+                PathBuf::from("/usr/local/bin/gws"),
+                self.paths.home.join(".cargo").join("bin").join("gws"),
+                self.paths.home.join(".local").join("bin").join("gws"),
+            ]
+        } else {
+            Vec::new()
         }
     }
 
-    /// GETs `url`; a non-2xx status or no response is a [`CoreError::Download`].
-    fn download(&self, url: &str) -> Result<Vec<u8>, CoreError> {
-        let response = self
-            .http
-            .get(url)
-            .map_err(|error| CoreError::Download(format!("{url}: {error}")))?;
-        if !(200..300).contains(&response.status) {
-            return Err(CoreError::Download(format!(
-                "{url}: HTTP {}",
-                response.status
-            )));
+    /// Whether `program --version` starts with `gws <GWS_VERSION>`, run in the same
+    /// controlled environment as every gws call ([`Core::gws_command`]). A program that
+    /// cannot start counts as not pinned; `Err` only if the environment cannot be built.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// if self.is_pinned(Path::new("gws"))? {
+    ///     println!("gws on PATH is the pinned version");
+    /// }
+    /// ```
+    fn is_pinned(&self, program: &Path) -> Result<bool, CoreError> {
+        let command = self.gws_command(program, &["--version"])?;
+        match self.runner.run(&command) {
+            Ok(output) => Ok(output.exit_code == 0
+                && output.stdout.lines().next().map(str::trim)
+                    == Some(format!("gws {GWS_VERSION}").as_str())),
+            Err(_) => Ok(false),
         }
-        Ok(response.body)
     }
 }
 

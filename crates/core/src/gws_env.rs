@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::oauth_client::{CLIENT_ID, CLIENT_SECRET};
-use crate::{CommandSpec, Core, CoreError, KeyStorage};
+use crate::{CommandSpec, Core, CoreError};
 
 /// Ownership marker written into the config folder after a successful haulmer-connect login.
 ///
@@ -49,11 +49,10 @@ impl Core {
         if let Some(dir) = &settings.config_dir {
             set("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", &dir.to_string_lossy());
         }
-        let backend = match settings.resolved_key_storage() {
-            KeyStorage::File => "file",
-            KeyStorage::Keyring | KeyStorage::Auto => "keyring",
-        };
-        set("GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND", backend);
+        set(
+            "GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND",
+            settings.resolved_key_storage().backend(),
+        );
         set("GOOGLE_WORKSPACE_CLI_CLIENT_ID", CLIENT_ID);
         set("GOOGLE_WORKSPACE_CLI_CLIENT_SECRET", CLIENT_SECRET);
         set("NO_COLOR", "1");
@@ -120,5 +119,23 @@ pub fn remove_marker(config_dir: &Path) -> Result<(), CoreError> {
     match std::fs::remove_file(config_dir.join(MARKER_FILE)) {
         Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
         _ => Ok(()),
+    }
+}
+
+/// The message of a failed gws call: `error.message` from gws's JSON error on `stdout`
+/// (`{"error":{"message":"..."}}`), else `fallback` trimmed.
+///
+/// # Example
+///
+/// ```ignore
+/// let stdout = r#"{"error":{"code":401,"message":"No credentials"}}"#;
+/// assert_eq!(gws_error_message(stdout, "ignored"), "No credentials");
+/// assert_eq!(gws_error_message("not json", " stderr text\n"), "stderr text");
+/// ```
+pub(crate) fn gws_error_message(stdout: &str, fallback: &str) -> String {
+    let json: serde_json::Value = serde_json::from_str(stdout).unwrap_or_default();
+    match json["error"]["message"].as_str() {
+        Some(message) => message.to_string(),
+        None => fallback.trim().to_string(),
     }
 }

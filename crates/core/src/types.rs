@@ -33,6 +33,24 @@ impl Service {
         Service::Meet,
         Service::Drive,
     ];
+
+    /// The service's lowercase name, as used in gws skill folders (`gws-<slug>*`) and JSON.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use haulmer_connect_core::Service;
+    /// assert_eq!(Service::Calendar.slug(), "calendar");
+    /// ```
+    pub fn slug(self) -> &'static str {
+        match self {
+            Service::Gmail => "gmail",
+            Service::Calendar => "calendar",
+            Service::Chat => "chat",
+            Service::Meet => "meet",
+            Service::Drive => "drive",
+        }
+    }
 }
 
 /// Access level for one service. `Write` always implies `Read` (see `scopes::normalize`).
@@ -198,6 +216,27 @@ pub enum KeyStorage {
     Auto,
     Keyring,
     File,
+}
+
+impl KeyStorage {
+    /// The value of `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` for a resolved setting:
+    /// `"file"` for `File`, `"keyring"` otherwise. Resolve `Auto` first with
+    /// `Settings::resolved_key_storage`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use haulmer_connect_core::KeyStorage;
+    /// assert_eq!(KeyStorage::File.backend(), "file");
+    /// assert_eq!(KeyStorage::Keyring.backend(), "keyring");
+    /// ```
+    pub fn backend(self) -> &'static str {
+        if self == KeyStorage::File {
+            "file"
+        } else {
+            "keyring"
+        }
+    }
 }
 
 /// Folders injected into the core. Tests pass temp dirs; the app passes the real ones.

@@ -277,3 +277,25 @@ pub trait HttpClient: Send + Sync {
     /// ```
     fn post_form(&self, url: &str, form: &[(&str, &str)]) -> Result<HttpResponse, CoreError>;
 }
+
+/// GETs `url` and returns the body of a 2xx response. No response or any other status is
+/// a [`CoreError::Download`] that names the URL.
+///
+/// # Example
+///
+/// ```ignore
+/// let archive = download(self.http.as_ref(), SKILLS_TARBALL_URL)?;
+/// // Err(Download("https://...: HTTP 404")) when GitHub answers 404
+/// ```
+pub(crate) fn download(http: &dyn HttpClient, url: &str) -> Result<Vec<u8>, CoreError> {
+    let response = http
+        .get(url)
+        .map_err(|error| CoreError::Download(format!("{url}: {error}")))?;
+    if !(200..300).contains(&response.status) {
+        return Err(CoreError::Download(format!(
+            "{url}: HTTP {}",
+            response.status
+        )));
+    }
+    Ok(response.body)
+}

@@ -51,19 +51,22 @@ impl Core {
 
     /// Runs `gws auth status` and parses its JSON. Missing, null or mistyped fields read as
     /// "not granted"; output that is not a JSON object is a [`CoreError::Parse`].
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let gws = self.ensure_gws()?;
+    /// let auth = self.auth_status(&gws)?;
+    /// println!("{:?} {}", auth.user, auth.token_valid);
+    /// ```
     fn auth_status(&self, gws: &Path) -> Result<AuthStatus, CoreError> {
         let output = self
             .runner
             .run(&self.gws_command(gws, &["auth", "status"])?)?;
         if output.exit_code != 0 {
-            let error: Value = serde_json::from_str(&output.stdout).unwrap_or_default();
-            let message = match error["error"]["message"].as_str() {
-                Some(message) => message.to_string(),
-                None => output.stderr.trim().to_string(),
-            };
             return Err(CoreError::Gws {
                 exit_code: output.exit_code,
-                message,
+                message: gws_env::gws_error_message(&output.stdout, &output.stderr),
             });
         }
         let json: Value = serde_json::from_str(&output.stdout)?;

@@ -77,6 +77,60 @@ fn no_pinned_gws_anywhere_is_none_without_any_download() {
     assert!(s.http.requests().is_empty());
 }
 
+#[cfg(unix)]
+#[test]
+fn pinned_gws_in_a_well_known_user_folder_is_found_when_path_has_none() {
+    let s = setup();
+    let home = s._home.path();
+    let cargo = home.join(".cargo/bin/gws");
+    let local = home.join(".local/bin/gws");
+    for gws in [&cargo, &local] {
+        std::fs::create_dir_all(gws.parent().unwrap()).unwrap();
+        std::fs::write(gws, "binary").unwrap();
+    }
+    s.runner
+        .on_program(&cargo, &["--version"], FakeReply::ok("gws 0.21.0\n"));
+    s.runner
+        .on_program(&local, &["--version"], FakeReply::ok(PINNED));
+
+    assert_eq!(s.core.find_gws().unwrap(), Some(local));
+    assert!(s.http.requests().is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn well_known_folders_without_a_gws_file_are_not_probed() {
+    let s = setup();
+
+    assert_eq!(s.core.find_gws().unwrap(), None);
+
+    let home = s._home.path();
+    let probed: Vec<PathBuf> = s
+        .runner
+        .calls()
+        .into_iter()
+        .map(|c| c.command.program)
+        .collect();
+    assert!(!probed.contains(&home.join(".cargo/bin/gws")), "{probed:?}");
+    assert!(!probed.contains(&home.join(".local/bin/gws")), "{probed:?}");
+}
+
+#[test]
+fn version_probe_runs_in_the_controlled_gws_environment() {
+    let s = setup();
+    s.runner
+        .on_program("gws", &["--version"], FakeReply::ok(PINNED));
+
+    s.core.find_gws().unwrap();
+
+    let probe = &s.runner.calls()[0].command;
+    assert_eq!(probe.args, ["--version"]);
+    assert_eq!(probe.cwd, s.app_data.path().join("run"));
+    assert_eq!(probe.env["NO_COLOR"], "1");
+    assert!(probe.env_remove.contains("GOOGLE_APPLICATION_CREDENTIALS"));
+    assert!(probe.env_remove.contains("GOOGLE_WORKSPACE_CLI_TOKEN"));
+}
+
 const BINARY: &[u8] = b"#!fake gws binary";
 
 /// A release archive with the binary and a LICENSE at its root, in this platform's format.
