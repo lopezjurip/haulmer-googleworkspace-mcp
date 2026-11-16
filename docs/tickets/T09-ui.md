@@ -1,7 +1,7 @@
 ---
 id: T09
 title: Tauri wiring and the one-screen UI
-status: open
+status: done
 blocked_by: [T01]
 ---
 

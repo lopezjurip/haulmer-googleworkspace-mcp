@@ -8,6 +8,7 @@ use haulmer_connect_core::{
     Status, scopes,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
 /// Event emitted with the Google sign-in URL while `save` waits for the login.
 const AUTH_URL_EVENT: &str = "auth-url";
@@ -24,7 +25,8 @@ fn status(core: State<'_, Core>) -> Result<Status, CoreError> {
     core.status()
 }
 
-/// `Core::save`; the sign-in URL is emitted as the `auth-url` event.
+/// `Core::save`; the sign-in URL opens in the default browser and is also emitted as the
+/// `auth-url` event, so the UI can offer it again if the browser did not open.
 ///
 /// # Example
 ///
@@ -39,6 +41,7 @@ fn save(
     confirm_replace: bool,
 ) -> Result<SaveOutcome, CoreError> {
     let on_auth_url = |url: &str| {
+        let _ = app.opener().open_url(url, None::<&str>);
         let _ = app.emit(AUTH_URL_EVENT, url);
     };
     core.save(&selection, confirm_replace, &on_auth_url)
@@ -138,6 +141,8 @@ fn default_selection() -> Selection {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let paths = Paths {
                 home: app.path().home_dir()?,

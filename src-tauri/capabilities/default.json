@@ -6,6 +6,10 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
+    "dialog:allow-open",
+    "dialog:allow-message"
   ]
 }
