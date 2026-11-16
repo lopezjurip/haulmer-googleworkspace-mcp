@@ -1,7 +1,7 @@
 ---
 id: T08
 title: install_skills(): install gws skills into agents
-status: open
+status: done
 blocked_by: [T02, T04]
 ---
 
