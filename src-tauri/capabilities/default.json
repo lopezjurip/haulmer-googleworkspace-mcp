@@ -7,8 +7,13 @@
   ],
   "permissions": [
     "core:default",
-    "opener:allow-open-url",
-    "opener:allow-default-urls",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://accounts.google.com/*" },
+        { "url": "https://myaccount.google.com/*" }
+      ]
+    },
     "dialog:allow-open",
     "dialog:allow-message"
   ]
