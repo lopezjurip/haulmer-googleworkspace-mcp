@@ -1,7 +1,7 @@
 ---
 id: T02
 title: Scope catalogue and selection mapping
-status: open
+status: done
 blocked_by: [T01]
 ---
 
@@ -19,6 +19,6 @@ Module `scopes`: the selection → scopes mapping from the spec table, and the r
 - Plain-language descriptions per service and level for the UI (e.g. "Write: send and modify email"), exposed through the core so the UI holds no scope logic.
 
 ## Acceptance criteria
-- [ ] Default selection matches the spec.
-- [ ] Every row of the spec table maps to exactly those scopes.
-- [ ] Write implies Read; reverse mapping round-trips; extra identity scopes are ignored.
+- [x] Default selection matches the spec.
+- [x] Every row of the spec table maps to exactly those scopes.
+- [x] Write implies Read; reverse mapping round-trips; extra identity scopes are ignored.
