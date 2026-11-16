@@ -1252,8 +1252,6 @@ name = "haulmer-connect"
 version = "0.1.0"
 dependencies = [
  "haulmer-connect-core",
- "serde",
- "serde_json",
  "tauri",
  "tauri-build",
 ]
