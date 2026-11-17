@@ -31,6 +31,27 @@ pnpm install
 pnpm tauri dev
 ```
 
+## MCP
+
+The app doubles as an MCP server with one tool, `gws`. The **Use from desktop AI apps**
+buttons (**Add to Claude Desktop**, **Add to ChatGPT**) write the config for you. To add it by
+hand, point the client at the installed app with the argument `mcp`
+(`/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect` on macOS):
+
+```jsonc
+// Claude Desktop: ~/Library/Application Support/Claude/claude_desktop_config.json
+{ "mcpServers": { "haulmer-connect": { "command": "<path to haulmer-connect>", "args": ["mcp"] } } }
+```
+
+```toml
+# ChatGPT desktop, Codex CLI and IDE extension: ~/.codex/config.toml
+[mcp_servers.haulmer-connect]
+command = "<path to haulmer-connect>"
+args = ["mcp"]
+```
+
+Restart the app afterwards. `auth` commands are refused over MCP; sign in with the app first.
+
 ## Test
 
 ```sh

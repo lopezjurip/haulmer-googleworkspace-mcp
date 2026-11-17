@@ -5,10 +5,13 @@ use std::path::PathBuf;
 
 use haulmer_connect_core::{
     Core, CoreError, InstalledSkills, KeyStorage, Paths, RevokeOutcome, SaveOutcome, Selection,
-    ServiceInfo, Status, scopes,
+    ServiceInfo, Status, mcp, scopes,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
+
+/// Bundle identifier of the app (`identifier` in `tauri.conf.json`); the app data folder is named after it.
+const IDENTIFIER: &str = "com.haulmer.connect";
 
 /// Event emitted with the Google sign-in URL while `save` waits for the login.
 const AUTH_URL_EVENT: &str = "auth-url";
@@ -131,6 +134,30 @@ fn default_selection() -> Selection {
     scopes::default_selection()
 }
 
+/// `Core::add_to_claude_desktop` with this executable; returns the config file path.
+///
+/// # Example
+///
+/// ```js
+/// const path = await invoke("add_to_claude_desktop");
+/// ```
+#[tauri::command]
+fn add_to_claude_desktop(core: State<'_, Core>) -> Result<PathBuf, CoreError> {
+    core.add_to_claude_desktop(&std::env::current_exe()?)
+}
+
+/// `Core::add_to_chatgpt` with this executable; returns the config file path.
+///
+/// # Example
+///
+/// ```js
+/// const path = await invoke("add_to_chatgpt");
+/// ```
+#[tauri::command]
+fn add_to_chatgpt(core: State<'_, Core>) -> Result<PathBuf, CoreError> {
+    core.add_to_chatgpt(&std::env::current_exe()?)
+}
+
 /// Starts the Tauri application with one shared `Core` built from the real folders.
 ///
 /// # Example
@@ -160,8 +187,41 @@ pub fn run() {
             set_config_dir,
             set_key_storage,
             catalogue,
-            default_selection
+            default_selection,
+            add_to_claude_desktop,
+            add_to_chatgpt
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Runs the MCP server on stdin/stdout (`haulmer-connect mcp`), with no window. Uses the same
+/// folders as the app: `home` and `<data dir>/com.haulmer.connect` as Tauri's `app_data_dir`
+/// (`dirs::data_dir`: macOS `~/Library/Application Support`, Windows `%APPDATA%`, Linux
+/// `$XDG_DATA_HOME` or `~/.local/share`).
+///
+/// # Example
+///
+/// ```no_run
+/// haulmer_connect_lib::run_mcp().unwrap();
+/// ```
+pub fn run_mcp() -> Result<(), CoreError> {
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    let home = PathBuf::from(std::env::var_os(home_var).unwrap_or_default());
+    let data_dir: PathBuf;
+    if cfg!(target_os = "macos") {
+        data_dir = home.join("Library/Application Support");
+    } else if cfg!(windows) {
+        data_dir = PathBuf::from(std::env::var_os("APPDATA").unwrap_or_default());
+    } else {
+        match std::env::var_os("XDG_DATA_HOME") {
+            Some(dir) if !dir.is_empty() => data_dir = PathBuf::from(dir),
+            _ => data_dir = home.join(".local/share"),
+        }
+    }
+    let core = Core::system(Paths {
+        app_data: data_dir.join(IDENTIFIER),
+        home,
+    });
+    mcp::serve(&core, std::io::stdin().lock(), std::io::stdout().lock())
 }

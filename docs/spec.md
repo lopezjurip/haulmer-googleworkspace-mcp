@@ -137,6 +137,13 @@ Write always implies Read for the same service.
 - When the config folder or key storage is not the default, the installed `gws-shared/SKILL.md` gets an "Environment" section that tells agents to export `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` and `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` before every `gws` call. No wrapper on PATH.
 - Accepted risk: any agent that can run `gws` can also run `gws auth export --unmasked` and read the refresh token. This is accepted for the pilot and must be reviewed before company-wide rollout.
 
+### MCP
+
+- `haulmer-connect mcp` runs an MCP server on stdin/stdout (newline-delimited JSON-RPC 2.0, no window). It uses the same folders as the app (home and `<data dir>/com.haulmer.connect`).
+- One tool, `gws`, with input `{args: string[]}`. It runs the pinned `gws` through the same environment as the app and returns stdout (stderr when stdout is empty); a non-zero exit sets `isError`. It never downloads gws: when missing it says to open the app and click Save.
+- `auth` commands are blocked over MCP (`args[0] == "auth"`), so a model cannot call `gws auth export --unmasked` through this tool. Login and revoke stay in the app. This does not close the accepted risk above: an agent with a shell can still run `gws` directly.
+- Two config writers, behind buttons in the app, point the clients at the current executable with `args: ["mcp"]`: **Add to Claude Desktop** merges `mcpServers["haulmer-connect"]` into `claude_desktop_config.json` (invalid JSON is never overwritten); **Add to ChatGPT** writes the `[mcp_servers.haulmer-connect]` table in `~/.codex/config.toml`, shared by the ChatGPT desktop app, the Codex CLI and the Codex IDE extension. Running either twice replaces the entry.
+
 ### Distribution
 
 - Public repository `github.com/haulmer/haulmer-connect`.

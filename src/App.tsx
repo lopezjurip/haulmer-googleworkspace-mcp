@@ -20,7 +20,7 @@ import {
 const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
 
 /** The one action running right now; controls stay disabled while one runs. */
-type Busy = "save" | "revoke" | "install" | "advanced" | null;
+type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | null;
 
 /** Feedback shown after an action. */
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
@@ -195,6 +195,25 @@ export default function App() {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
     } finally {
       await refreshStatus();
+      setBusy(null);
+    }
+  }
+
+  /**
+   * Adds the haulmer-connect MCP server to a desktop AI app's config.
+   *
+   * @example
+   * await handleAddToClient("add_to_chatgpt", "Added. Restart ChatGPT (also works in Codex).");
+   */
+  async function handleAddToClient(command: "add_to_claude_desktop" | "add_to_chatgpt", text: string) {
+    setBusy("mcp");
+    setNotice(null);
+    try {
+      await invoke<string>(command);
+      setNotice({ kind: "success", text });
+    } catch (error) {
+      setNotice({ kind: "error", text: ERROR_TEXT(error) });
+    } finally {
       setBusy(null);
     }
   }
@@ -403,6 +422,26 @@ export default function App() {
       {notice !== null && (
         <p className={`rounded-lg border p-3 text-sm ${noticeClass}`}>{notice.text}</p>
       )}
+
+      <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
+        <span className="font-medium">Use from desktop AI apps</span>
+        <button
+          type="button"
+          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
+          disabled={disabled}
+          onClick={() => handleAddToClient("add_to_claude_desktop", "Added. Restart Claude Desktop.")}
+        >
+          Add to Claude Desktop
+        </button>
+        <button
+          type="button"
+          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
+          disabled={disabled}
+          onClick={() => handleAddToClient("add_to_chatgpt", "Added. Restart ChatGPT (also works in Codex).")}
+        >
+          Add to ChatGPT
+        </button>
+      </section>
 
       <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
         <button

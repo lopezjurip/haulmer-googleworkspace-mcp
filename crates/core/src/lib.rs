@@ -16,6 +16,8 @@
 //! | [`revoke`] | T06 | `Core::revoke_all` |
 //! | [`save`] | T07 | `Core::save`, `Core::cancel_login` |
 //! | [`skills`] | T08 | `Core::install_skills` |
+//! | [`mcp`] | MCP | `mcp::serve`, the `gws` tool over MCP stdio |
+//! | [`mcp_clients`] | MCP | `Core::add_to_claude_desktop`, `Core::add_to_chatgpt` |
 //!
 //! Conventions for those tickets: put tests in `crates/core/tests/<module>.rs` using
 //! `testing::FakeRunner`, `testing::FakeHttp` and temp dirs; drop the `should_panic`
@@ -33,6 +35,8 @@ use std::sync::{Arc, Mutex};
 
 pub mod gws_binary;
 pub mod gws_env;
+pub mod mcp;
+pub mod mcp_clients;
 pub mod oauth_client;
 mod ports;
 pub mod revoke;
