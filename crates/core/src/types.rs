@@ -313,11 +313,12 @@ pub struct Settings {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::{KeyStorage, Selection, Status};
+/// use haulmer_connect_core::{BusinessSelection, KeyStorage, Selection, Status};
 /// let status = Status {
 ///     gws_available: true,
 ///     account: None,
 ///     granted: Selection::new(),
+///     business_granted: BusinessSelection::new(),
 ///     token_valid: false,
 ///     config_dir: "/home/ana/.config/gws".into(),
 ///     config_dir_is_default: true,
@@ -335,6 +336,8 @@ pub struct Status {
     pub account: Option<String>,
     /// Levels Google actually granted (from `gws auth status`).
     pub granted: Selection,
+    /// Business connector levels Google actually granted.
+    pub business_granted: BusinessSelection,
     /// gws could refresh the token.
     pub token_valid: bool,
     /// Active gws config folder.
@@ -380,7 +383,7 @@ pub enum SaveOutcome {
 ///     r#"{"kind":"needs_foreign_confirmation"}"#
 /// );
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RevokeOutcome {
     /// Access was revoked and local credentials cleared.
@@ -427,6 +430,55 @@ pub struct ServiceInfo {
     pub availability_reason: Option<&'static str>,
 }
 
+/// One requested access level for a non-Workspace Google connector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct BusinessAccess {
+    pub connector: BusinessConnector,
+    pub level: Level,
+}
+
+/// Granted or requested levels for business connectors.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct BusinessSelection(BTreeSet<BusinessAccess>);
+
+impl BusinessSelection {
+    /// Creates an empty business selection.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds one connector level.
+    pub fn insert(&mut self, connector: BusinessConnector, level: Level) -> bool {
+        self.0.insert(BusinessAccess { connector, level })
+    }
+
+    /// Builds a selection from connector and level pairs.
+    pub fn from_levels(levels: impl IntoIterator<Item = (BusinessConnector, Level)>) -> Self {
+        Self(
+            levels
+                .into_iter()
+                .map(|(connector, level)| BusinessAccess { connector, level })
+                .collect(),
+        )
+    }
+
+    /// Whether a connector level is selected.
+    pub fn contains(&self, connector: BusinessConnector, level: Level) -> bool {
+        self.0.contains(&BusinessAccess { connector, level })
+    }
+
+    /// Whether no business connector is selected.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Iterates connector levels in stable order.
+    pub fn iter(&self) -> impl Iterator<Item = BusinessAccess> + '_ {
+        self.0.iter().copied()
+    }
+}
+
 /// UI category for a Google Workspace capability.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -436,7 +488,7 @@ pub enum ServiceCategory {
 }
 
 /// A Google API outside the gws Workspace service catalogue.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BusinessConnector {
     Youtube,

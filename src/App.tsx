@@ -11,6 +11,9 @@ import {
   TOGGLE_LEVEL,
   type InstalledSkills,
   type BusinessConnectorInfo,
+  type BusinessSelection,
+  HAS_BUSINESS_LEVEL,
+  TOGGLE_BUSINESS_LEVEL,
   type KeyStorage,
   type RevokeOutcome,
   type SaveOutcome,
@@ -40,6 +43,7 @@ export default function App() {
   const [statusError, setStatusError] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<ServiceInfo[]>([]);
   const [businessCatalogue, setBusinessCatalogue] = useState<BusinessConnectorInfo[]>([]);
+  const [businessSelection, setBusinessSelection] = useState<BusinessSelection>([]);
   const [catalogueError, setCatalogueError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>([]);
   const [busy, setBusy] = useState<Busy>(null);
@@ -123,6 +127,7 @@ export default function App() {
     }
     if (statusResult.status === "fulfilled" && statusResult.value.account !== null) {
       setSelection(statusResult.value.granted);
+      setBusinessSelection(statusResult.value.business_granted);
     } else if (defaultsResult.status === "fulfilled") {
       setSelection(defaultsResult.value);
     }
@@ -155,7 +160,11 @@ export default function App() {
     setNotice(null);
     setAuthUrl(null);
     try {
-      let outcome = await invoke<SaveOutcome>("save", { selection, confirmReplace: false });
+      let outcome = await invoke<SaveOutcome>("save", {
+        selection,
+        businessSelection,
+        confirmReplace: false,
+      });
       if (outcome.kind === "needs_replace_confirmation") {
         const replace = await ask("You already have gws connected with another app. Replace?", {
           title: "Replace gws connection",
@@ -166,13 +175,18 @@ export default function App() {
         if (!replace) {
           return;
         }
-        outcome = await invoke<SaveOutcome>("save", { selection, confirmReplace: true });
+        outcome = await invoke<SaveOutcome>("save", {
+          selection,
+          businessSelection,
+          confirmReplace: true,
+        });
       }
       if (outcome.kind === "connected") {
         const account = outcome.status.account;
         setStatus(outcome.status);
         setStatusError(null);
         setSelection(outcome.status.granted);
+        setBusinessSelection(outcome.status.business_granted);
         const text = account === null ? "Saved. All access removed." : `Saved. Connected as ${account}.`;
         setNotice({ kind: "success", text });
       }
@@ -452,9 +466,47 @@ export default function App() {
           {businessCatalogue.map((info) => (
             <li key={info.connector} className="p-4">
               <p className="font-medium">{info.name}</p>
-              <p className="mt-1 text-xs text-slate-500">{info.availability_reason}</p>
-              <p className="mt-2 text-sm text-slate-500">{info.read}</p>
-              <p className="mt-1 text-sm text-slate-500">{info.write}</p>
+              {info.availability_reason !== null && (
+                <p className="mt-1 text-xs text-amber-700">{info.availability_reason}</p>
+              )}
+              <label className="mt-2 flex items-start gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  disabled={disabled || !info.enabled}
+                  checked={HAS_BUSINESS_LEVEL(businessSelection, info.connector, "read")}
+                  onChange={(event) =>
+                    setBusinessSelection(
+                      TOGGLE_BUSINESS_LEVEL(
+                        businessSelection,
+                        info.connector,
+                        "read",
+                        event.target.checked,
+                      ),
+                    )
+                  }
+                />
+                {info.read}
+              </label>
+              <label className="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  disabled={disabled || !info.enabled}
+                  checked={HAS_BUSINESS_LEVEL(businessSelection, info.connector, "write")}
+                  onChange={(event) =>
+                    setBusinessSelection(
+                      TOGGLE_BUSINESS_LEVEL(
+                        businessSelection,
+                        info.connector,
+                        "write",
+                        event.target.checked,
+                      ),
+                    )
+                  }
+                />
+                {info.write}
+              </label>
             </li>
           ))}
         </ul>

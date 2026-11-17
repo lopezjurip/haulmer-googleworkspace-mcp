@@ -4,8 +4,8 @@
 use std::path::PathBuf;
 
 use haulmer_connect_core::{
-    BusinessConnectorInfo, Core, CoreError, InstalledSkills, KeyStorage, Paths, RevokeOutcome,
-    SaveOutcome, Selection, ServiceInfo, Status, mcp, scopes,
+    BusinessConnectorInfo, BusinessSelection, Core, CoreError, InstalledSkills, KeyStorage, Paths,
+    RevokeOutcome, SaveOutcome, Selection, ServiceInfo, Status, mcp, scopes,
 };
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -42,13 +42,21 @@ fn save(
     app: AppHandle,
     core: State<'_, Core>,
     selection: Selection,
+    business_selection: Option<BusinessSelection>,
     confirm_replace: bool,
 ) -> Result<SaveOutcome, CoreError> {
     let on_auth_url = |url: &str| {
         let _ = app.opener().open_url(url, None::<&str>);
         let _ = app.emit(AUTH_URL_EVENT, url);
     };
-    core.save(&selection, confirm_replace, &on_auth_url)
+    core.save_with_business(
+        &selection,
+        business_selection
+            .as_ref()
+            .unwrap_or(&BusinessSelection::new()),
+        confirm_replace,
+        &on_auth_url,
+    )
 }
 
 /// `Core::cancel_login`.
@@ -132,8 +140,9 @@ fn catalogue(core: State<'_, Core>) -> Result<Vec<ServiceInfo>, CoreError> {
 /// const connectors = await invoke("business_catalogue");
 /// ```
 #[tauri::command]
-fn business_catalogue() -> Vec<BusinessConnectorInfo> {
-    scopes::business_catalogue()
+fn business_catalogue(core: State<'_, Core>) -> Result<Vec<BusinessConnectorInfo>, CoreError> {
+    let granted = core.status()?.business_granted;
+    Ok(scopes::business_catalogue_for(&granted))
 }
 
 /// Returns the connected user's YouTube channel through the shared OAuth account.

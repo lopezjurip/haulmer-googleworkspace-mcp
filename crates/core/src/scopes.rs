@@ -2,8 +2,8 @@
 //! Spec: `docs/spec.md` "Scope catalogue".
 
 use crate::{
-    BusinessConnector, BusinessConnectorInfo, Level, Selection, Service, ServiceCategory,
-    ServiceInfo,
+    BusinessConnector, BusinessConnectorInfo, BusinessSelection, Level, Selection, Service,
+    ServiceCategory, ServiceInfo,
 };
 
 /// Prefix of every Google scope URL in the catalogue.
@@ -141,6 +141,74 @@ fn level_scopes(service: Service, level: Level) -> &'static [&'static str] {
 /// ```
 pub fn scopes_arg(selection: &Selection) -> String {
     scopes_for(selection).join(",")
+}
+
+/// Full scope URLs for a business connector selection.
+pub fn business_scopes_for(selection: &BusinessSelection) -> Vec<String> {
+    business_normalize(selection)
+        .iter()
+        .flat_map(|access| business_level_scopes(access.connector, access.level))
+        .map(|short| format!("{SCOPE_PREFIX}{short}"))
+        .collect()
+}
+
+/// Normalises business access so Write always includes Read.
+pub fn business_normalize(selection: &BusinessSelection) -> BusinessSelection {
+    let mut normalized = selection.clone();
+    for access in selection
+        .iter()
+        .filter(|access| access.level == Level::Write)
+    {
+        normalized.insert(access.connector, Level::Read);
+    }
+    normalized
+}
+
+/// The `--scopes` argument for business connector access.
+pub fn business_scopes_arg(selection: &BusinessSelection) -> String {
+    business_scopes_for(selection).join(",")
+}
+
+fn business_level_scopes(connector: BusinessConnector, level: Level) -> &'static [&'static str] {
+    match (connector, level) {
+        (BusinessConnector::Youtube, Level::Read) => &["youtube.readonly"],
+        (BusinessConnector::Youtube, Level::Write) => &["youtube"],
+        (BusinessConnector::GoogleAds, _) => &["adwords"],
+        (BusinessConnector::Analytics, Level::Read) => &["analytics.readonly"],
+        (BusinessConnector::Analytics, Level::Write) => &["analytics.edit"],
+        (BusinessConnector::SearchConsole, Level::Read) => &["webmasters.readonly"],
+        (BusinessConnector::SearchConsole, Level::Write) => &["webmasters"],
+        (BusinessConnector::BusinessProfile, _) => &["business.manage"],
+        (BusinessConnector::MerchantCenter, _) => &["content"],
+    }
+}
+
+/// Converts granted OAuth scopes into business connector levels.
+pub fn business_selection_from_scopes(granted: &[String]) -> BusinessSelection {
+    let is_granted = |short: &str| {
+        granted
+            .iter()
+            .any(|scope| scope.strip_prefix(SCOPE_PREFIX) == Some(short))
+    };
+    let mut selection = BusinessSelection::new();
+    for connector in [
+        BusinessConnector::Youtube,
+        BusinessConnector::GoogleAds,
+        BusinessConnector::Analytics,
+        BusinessConnector::SearchConsole,
+        BusinessConnector::BusinessProfile,
+        BusinessConnector::MerchantCenter,
+    ] {
+        for level in [Level::Read, Level::Write] {
+            if business_level_scopes(connector, level)
+                .iter()
+                .all(|short| is_granted(short))
+            {
+                selection.insert(connector, level);
+            }
+        }
+    }
+    selection
 }
 
 /// Granted scopes (as `gws auth status` prints them) -> granted levels. A level counts only
@@ -303,6 +371,11 @@ pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
 /// assert_eq!(scopes::business_catalogue().len(), 6);
 /// ```
 pub fn business_catalogue() -> Vec<BusinessConnectorInfo> {
+    business_catalogue_for(&BusinessSelection::new())
+}
+
+/// Builds the business connector catalogue with currently granted access.
+pub fn business_catalogue_for(granted: &BusinessSelection) -> Vec<BusinessConnectorInfo> {
     [
         (
             BusinessConnector::Youtube,
@@ -347,10 +420,15 @@ pub fn business_catalogue() -> Vec<BusinessConnectorInfo> {
         name,
         read,
         write,
-        enabled: false,
-        availability_reason: Some(
-            "Connector planned: OAuth is shared, but this product needs its own API client and permissions.",
-        ),
+        enabled: connector == BusinessConnector::Youtube
+            || granted.contains(connector, Level::Read),
+        availability_reason: if connector == BusinessConnector::Youtube
+            || granted.contains(connector, Level::Read)
+        {
+            None
+        } else {
+            Some("Connector not implemented yet; YouTube is available first.")
+        },
     })
     .collect()
 }

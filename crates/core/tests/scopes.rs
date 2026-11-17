@@ -1,7 +1,7 @@
 //! T02: scope catalogue. Expected values come from the spec table (`docs/spec.md`, "Scope catalogue").
 
 use haulmer_connect_core::scopes;
-use haulmer_connect_core::{Level, Selection, Service};
+use haulmer_connect_core::{BusinessConnector, BusinessSelection, Level, Selection, Service};
 
 #[test]
 fn default_selection_is_read_for_gmail_calendar_chat_meet_only() {
@@ -247,6 +247,7 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
             "{info:?}"
         );
     }
+
     assert!(catalogue[..11].iter().all(|info| info.enabled));
     assert!(catalogue[11..].iter().all(|info| !info.enabled));
     assert!(catalogue[11..].iter().all(|info| !info.write_enabled));
@@ -259,5 +260,20 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
             .find(|info| info.service == Service::AdminReports)
             .unwrap()
             .enabled
+    );
+}
+
+#[test]
+fn business_selection_maps_youtube_read_scope() {
+    let selection = BusinessSelection::from_levels([(BusinessConnector::Youtube, Level::Read)]);
+    assert_eq!(
+        scopes::business_scopes_arg(&selection),
+        "https://www.googleapis.com/auth/youtube.readonly"
+    );
+    assert_eq!(
+        scopes::business_selection_from_scopes(&[
+            "https://www.googleapis.com/auth/youtube.readonly".into()
+        ]),
+        selection
     );
 }

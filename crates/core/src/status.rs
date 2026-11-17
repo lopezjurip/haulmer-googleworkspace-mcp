@@ -40,6 +40,7 @@ impl Core {
             gws_available,
             account: auth.user.filter(|user| !user.is_empty()),
             granted: scopes::selection_from_scopes(&auth.scopes),
+            business_granted: scopes::business_selection_from_scopes(&auth.scopes),
             token_valid: auth.token_valid,
             config_dir_is_default: settings.is_default_config_dir(),
             key_storage: settings.key_storage,

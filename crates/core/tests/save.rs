@@ -7,7 +7,8 @@ use haulmer_connect_core::gws_env::MARKER_FILE;
 use haulmer_connect_core::revoke::REVOKE_URL;
 use haulmer_connect_core::testing::{CallKind, FakeHttp, FakeReply, FakeRunner};
 use haulmer_connect_core::{
-    Core, CoreError, HttpResponse, Level, Paths, SaveOutcome, Selection, Service,
+    BusinessConnector, BusinessSelection, Core, CoreError, HttpResponse, Level, Paths, SaveOutcome,
+    Selection, Service,
 };
 use tempfile::TempDir;
 
@@ -15,6 +16,7 @@ const URL: &str = "https://accounts.google.com/o/oauth2/auth?client_id=x&scope=y
 const LOGIN_OK: &str = r#"{"status":"success","account":"ana@haulmer.com"}"#;
 const GMAIL_READ: &str = "https://www.googleapis.com/auth/gmail.readonly";
 const CALENDAR_READ: &str = "https://www.googleapis.com/auth/calendar.readonly";
+const YOUTUBE_READ: &str = "https://www.googleapis.com/auth/youtube.readonly";
 
 /// Temp home + app data, a custom gws folder, and a pinned `gws` on PATH. Login writes
 /// credentials and makes `auth status` report the scopes it was asked for.
@@ -89,6 +91,16 @@ impl Fixture {
     fn save(&self, selection: &Selection) -> SaveOutcome {
         self.core.save(selection, false, &|_| {}).unwrap()
     }
+
+    fn save_with_business(
+        &self,
+        selection: &Selection,
+        business_selection: &BusinessSelection,
+    ) -> SaveOutcome {
+        self.core
+            .save_with_business(selection, business_selection, false, &|_| {})
+            .unwrap()
+    }
 }
 
 fn args(args: &[&str]) -> Vec<String> {
@@ -123,6 +135,17 @@ fn first_save_logs_in_once_with_the_selected_scopes_and_marks_the_folder() {
         .into_iter()
         .find(|c| c.command.args.get(1).is_some_and(|a| a == "login"));
     assert_eq!(login_call.unwrap().kind, CallKind::Spawn);
+}
+
+#[test]
+fn save_requests_shared_oauth_scope_for_youtube() {
+    let f = fixture();
+    let business = BusinessSelection::from_levels([(BusinessConnector::Youtube, Level::Read)]);
+
+    let outcome = f.save_with_business(&Selection::new(), &business);
+
+    assert!(matches!(outcome, SaveOutcome::Connected(_)));
+    assert_eq!(f.changing_calls(), [login(&[YOUTUBE_READ])]);
 }
 
 #[test]

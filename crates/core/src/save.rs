@@ -2,7 +2,9 @@
 
 use std::path::Path;
 
-use crate::{Core, CoreError, OutputLine, SaveOutcome, Selection, gws_env, scopes};
+use crate::{
+    BusinessSelection, Core, CoreError, OutputLine, SaveOutcome, Selection, gws_env, scopes,
+};
 
 impl Core {
     /// Applies the selection: may download gws, asks for replace confirmation on foreign
@@ -27,13 +29,30 @@ impl Core {
         confirm_replace: bool,
         on_auth_url: &dyn Fn(&str),
     ) -> Result<SaveOutcome, CoreError> {
+        self.save_with_business(
+            selection,
+            &BusinessSelection::new(),
+            confirm_replace,
+            on_auth_url,
+        )
+    }
+
+    /// Applies Workspace and business connector access in one shared OAuth login.
+    pub fn save_with_business(
+        &self,
+        selection: &Selection,
+        business_selection: &BusinessSelection,
+        confirm_replace: bool,
+        on_auth_url: &dyn Fn(&str),
+    ) -> Result<SaveOutcome, CoreError> {
         let config_dir = self.settings()?.active_config_dir(&self.paths);
         let foreign = gws_env::foreign_credentials(&config_dir);
         if foreign && !confirm_replace {
             return Ok(SaveOutcome::NeedsReplaceConfirmation);
         }
         let selection = scopes::normalize(selection);
-        if selection.is_empty() {
+        let business_selection = scopes::business_normalize(business_selection);
+        if selection.is_empty() && business_selection.is_empty() {
             if !foreign {
                 // Own credentials only (checked above), so no confirmation is involved.
                 self.revoke_all(false)?;
@@ -41,21 +60,25 @@ impl Core {
             return Ok(SaveOutcome::Connected(self.status()?));
         }
         let gws = self.ensure_gws()?;
-        let granted = if foreign {
-            Selection::new()
+        let (granted, business_granted) = if foreign {
+            (Selection::new(), BusinessSelection::new())
         } else {
-            self.status()?.granted
+            let status = self.status()?;
+            (status.granted, status.business_granted)
         };
         let removes_a_level = granted
             .iter()
             .any(|level| !selection.contains(level.service, level.level));
-        if removes_a_level {
+        let removes_business_level = business_granted
+            .iter()
+            .any(|level| !business_selection.contains(level.connector, level.level));
+        if removes_a_level || removes_business_level {
             self.revoke_and_logout(&gws)?;
             // The old access is gone: a sign-in that does not finish leaves nothing connected.
-            self.login(&gws, &selection, on_auth_url)
+            self.login(&gws, &selection, &business_selection, on_auth_url)
                 .map_err(|_| CoreError::AccessRemoved)?;
         } else {
-            self.login(&gws, &selection, on_auth_url)?;
+            self.login(&gws, &selection, &business_selection, on_auth_url)?;
         }
         gws_env::write_marker(&config_dir)?;
         Ok(SaveOutcome::Connected(self.status()?))
@@ -91,9 +114,12 @@ impl Core {
         &self,
         gws: &Path,
         selection: &Selection,
+        business_selection: &BusinessSelection,
         on_auth_url: &dyn Fn(&str),
     ) -> Result<(), CoreError> {
-        let scopes = scopes::scopes_arg(selection);
+        let mut requested_scopes = scopes::scopes_for(selection);
+        requested_scopes.extend(scopes::business_scopes_for(business_selection));
+        let scopes = requested_scopes.join(",");
         let command = self.gws_command(gws, &["auth", "login", "--scopes", &scopes])?;
         let mut process = self.runner.spawn(&command)?;
         *self.active_login.lock().unwrap() = Some(process.killer());
