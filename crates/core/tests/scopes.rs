@@ -250,4 +250,14 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
     assert!(catalogue[..11].iter().all(|info| info.enabled));
     assert!(catalogue[11..].iter().all(|info| !info.enabled));
     assert!(catalogue[11..].iter().all(|info| !info.write_enabled));
+
+    let admin_granted = Selection::from_levels([(Service::AdminReports, Level::Read)]);
+    let with_admin = scopes::catalogue_for(&admin_granted);
+    assert!(
+        with_admin
+            .iter()
+            .find(|info| info.service == Service::AdminReports)
+            .unwrap()
+            .enabled
+    );
 }

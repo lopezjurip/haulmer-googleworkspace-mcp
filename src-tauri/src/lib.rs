@@ -118,8 +118,9 @@ fn set_key_storage(core: State<'_, Core>, storage: KeyStorage) -> Result<(), Cor
 /// const services = await invoke("catalogue");
 /// ```
 #[tauri::command]
-fn catalogue() -> Vec<ServiceInfo> {
-    scopes::catalogue()
+fn catalogue(core: State<'_, Core>) -> Result<Vec<ServiceInfo>, CoreError> {
+    let granted = core.status()?.granted;
+    Ok(scopes::catalogue_for(&granted))
 }
 
 /// Business APIs reserved for dedicated connectors that share the OAuth account.

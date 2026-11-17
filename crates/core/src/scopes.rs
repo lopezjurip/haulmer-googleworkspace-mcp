@@ -186,6 +186,22 @@ pub fn selection_from_scopes(granted: &[String]) -> Selection {
 /// assert_eq!(scopes::catalogue().len(), 15);
 /// ```
 pub fn catalogue() -> Vec<ServiceInfo> {
+    catalogue_for(&Selection::new())
+}
+
+/// Builds the catalogue using the scopes already granted to the connected account.
+///
+/// Administrative rows are enabled only when their read scope is already present.
+///
+/// # Example
+///
+/// ```
+/// use haulmer_connect_core::{scopes, Level, Selection, Service};
+/// let granted = Selection::from_levels([(Service::AdminReports, Level::Read)]);
+/// let catalogue = scopes::catalogue_for(&granted);
+/// assert!(catalogue.iter().find(|info| info.service == Service::AdminReports).unwrap().enabled);
+/// ```
+pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
     Service::ALL
         .into_iter()
         .map(|service| {
@@ -261,14 +277,14 @@ pub fn catalogue() -> Vec<ServiceInfo> {
                         | Service::AdminDirectory
                         | Service::AdminGroups
                         | Service::CloudIdentity
-                ),
+                ) || granted.contains(service, Level::Read),
                 availability_reason: if matches!(
                     service,
                     Service::AdminReports
                         | Service::AdminDirectory
                         | Service::AdminGroups
                         | Service::CloudIdentity
-                ) {
+                ) && !granted.contains(service, Level::Read) {
                     Some("Requires a Google Workspace administrator account or delegated admin permissions.")
                 } else {
                     None
