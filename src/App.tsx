@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask, open } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import {
@@ -296,6 +296,15 @@ export default function App() {
       if (installed.length === 0) {
         setNotice({ kind: "info", text: "No agents were found on this computer." });
       } else {
+        try {
+          await revealItemInDir(installed[0].target);
+        } catch (error) {
+          setNotice({
+            kind: "error",
+            text: `Skills installed, but the folder could not be opened: ${ERROR_TEXT(error)}`,
+          });
+          return;
+        }
         const targets = installed.map((item) => item.target).join(", ");
         const skipped = [...new Set(installed.flatMap((item) => item.skipped))];
         let text = `Skills installed in: ${targets}.`;
@@ -578,7 +587,7 @@ export default function App() {
           disabled={disabled}
           onClick={handleInstall}
         >
-          Install in my agents
+          Install and open skills folder
         </button>
         <button
           type="button"
