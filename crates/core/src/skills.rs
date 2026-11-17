@@ -198,15 +198,14 @@ impl Core {
         let backend = settings.resolved_key_storage().backend();
         let mut lines = Vec::new();
         // `find_gws` returns the bare name "gws" only when it is found on PATH.
-        if let Some(gws) = self.find_gws()? {
-            if gws != Path::new("gws") {
-                if let Some(dir) = gws.parent() {
-                    lines.push(format!(
-                        "export PATH={}:\"$PATH\"",
-                        shell_quote(&dir.to_string_lossy())
-                    ));
-                }
-            }
+        if let Some(gws) = self.find_gws()?
+            && gws != Path::new("gws")
+            && let Some(dir) = gws.parent()
+        {
+            lines.push(format!(
+                "export PATH={}:\"$PATH\"",
+                shell_quote(&dir.to_string_lossy())
+            ));
         }
         if !settings.is_default_config_dir() {
             lines.push(format!(
