@@ -67,6 +67,16 @@ impl HttpClient for SystemHttp {
         to_response(url, agent().get(url).call())
     }
 
+    fn get_bearer(&self, url: &str, token: &str) -> Result<HttpResponse, CoreError> {
+        to_response(
+            url,
+            agent()
+                .get(url)
+                .header("Authorization", &format!("Bearer {token}"))
+                .call(),
+        )
+    }
+
     /// POSTs an `application/x-www-form-urlencoded` form.
     ///
     /// # Example

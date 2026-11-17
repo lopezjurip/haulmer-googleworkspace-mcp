@@ -267,6 +267,9 @@ pub trait HttpClient: Send + Sync {
     /// ```
     fn get(&self, url: &str) -> Result<HttpResponse, CoreError>;
 
+    /// GETs a URL with an OAuth bearer token without placing the token in the URL.
+    fn get_bearer(&self, url: &str, token: &str) -> Result<HttpResponse, CoreError>;
+
     /// POSTs an `application/x-www-form-urlencoded` body.
     ///
     /// # Example

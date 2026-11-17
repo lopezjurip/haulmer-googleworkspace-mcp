@@ -441,6 +441,10 @@ pub enum HttpRequest {
     Get {
         url: String,
     },
+    GetBearer {
+        url: String,
+        token: String,
+    },
     PostForm {
         url: String,
         form: Vec<(String, String)>,
@@ -531,7 +535,9 @@ impl FakeHttp {
     /// Records the request and returns the next canned result for its URL.
     fn respond(&self, request: HttpRequest) -> Result<HttpResponse, CoreError> {
         let url = match &request {
-            HttpRequest::Get { url } | HttpRequest::PostForm { url, .. } => url.clone(),
+            HttpRequest::Get { url }
+            | HttpRequest::GetBearer { url, .. }
+            | HttpRequest::PostForm { url, .. } => url.clone(),
         };
         self.requests.lock().unwrap().push(request);
         let mut responses = self.responses.lock().unwrap();
@@ -556,6 +562,13 @@ impl HttpClient for FakeHttp {
     fn get(&self, url: &str) -> Result<HttpResponse, CoreError> {
         self.respond(HttpRequest::Get {
             url: url.to_string(),
+        })
+    }
+
+    fn get_bearer(&self, url: &str, token: &str) -> Result<HttpResponse, CoreError> {
+        self.respond(HttpRequest::GetBearer {
+            url: url.to_string(),
+            token: token.to_string(),
         })
     }
 

@@ -7,6 +7,7 @@ use haulmer_connect_core::{
     BusinessConnectorInfo, Core, CoreError, InstalledSkills, KeyStorage, Paths, RevokeOutcome,
     SaveOutcome, Selection, ServiceInfo, Status, mcp, scopes,
 };
+use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -135,6 +136,18 @@ fn business_catalogue() -> Vec<BusinessConnectorInfo> {
     scopes::business_catalogue()
 }
 
+/// Returns the connected user's YouTube channel through the shared OAuth account.
+///
+/// # Example
+///
+/// ```js
+/// const channel = await invoke("youtube_channel");
+/// ```
+#[tauri::command(async)]
+fn youtube_channel(core: State<'_, Core>) -> Result<Value, CoreError> {
+    core.youtube_channel()
+}
+
 /// `scopes::default_selection`.
 ///
 /// # Example
@@ -203,6 +216,7 @@ pub fn run() {
             set_key_storage,
             catalogue,
             business_catalogue,
+            youtube_channel,
             default_selection,
             add_to_claude_desktop,
             add_to_chatgpt
