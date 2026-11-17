@@ -24,6 +24,13 @@ import {
 
 /** Google's "Third-party apps & services" page, where the person can also revoke access. */
 const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
+const MCP_INSTALL_PROMPT = `Configura haulmer-connect como servidor MCP local, pero no modifiques ningún archivo sin pedirme confirmación.
+
+La aplicación ya está instalada en este equipo. Usa su ejecutable y agrega:
+- Claude Desktop: mcpServers.haulmer-connect con args ["mcp"] en claude_desktop_config.json.
+- ChatGPT/Codex: [mcp_servers.haulmer-connect] con args = ["mcp"] en ~/.codex/config.toml.
+
+Conserva las demás configuraciones, explícame qué cambiarías y dime qué cliente debo reiniciar.`;
 
 /** The one action running right now; controls stay disabled while one runs. */
 type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | "update" | null;
@@ -50,6 +57,7 @@ export default function App() {
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [update, setUpdate] = useState<Update | null>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>("auth-url", (event) => setAuthUrl(event.payload));
@@ -259,18 +267,14 @@ export default function App() {
     }
   }
 
-  /**
-   * Adds the haulmer-connect MCP server to a desktop AI app's config.
-   *
-   * @example
-   * await handleAddToClient("add_to_chatgpt", "Added. Restart ChatGPT (also works in Codex).");
-   */
-  async function handleAddToClient(command: "add_to_claude_desktop" | "add_to_chatgpt", text: string) {
+  /** Copies non-invasive MCP setup instructions for the user's AI client. */
+  async function handleCopyInstallPrompt() {
     setBusy("mcp");
     setNotice(null);
     try {
-      await invoke<string>(command);
-      setNotice({ kind: "success", text });
+      await navigator.clipboard.writeText(MCP_INSTALL_PROMPT);
+      setShowInstallPrompt(true);
+      setNotice({ kind: "success", text: "Prompt copied. Paste it into Claude, ChatGPT or Codex." });
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
     } finally {
@@ -556,18 +560,15 @@ export default function App() {
           type="button"
           className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
           disabled={disabled}
-          onClick={() => handleAddToClient("add_to_claude_desktop", "Added. Restart Claude Desktop.")}
+          onClick={handleCopyInstallPrompt}
         >
-          Add to Claude Desktop
+          Copy install prompt
         </button>
-        <button
-          type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
-          disabled={disabled}
-          onClick={() => handleAddToClient("add_to_chatgpt", "Added. Restart ChatGPT (also works in Codex).")}
-        >
-          Add to ChatGPT
-        </button>
+        {showInstallPrompt && (
+          <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600">
+            {MCP_INSTALL_PROMPT}
+          </pre>
+        )}
       </section>
 
       <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
