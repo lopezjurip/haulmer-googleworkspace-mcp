@@ -10,6 +10,7 @@ import {
   HAS_LEVEL,
   TOGGLE_LEVEL,
   type InstalledSkills,
+  type BusinessConnectorInfo,
   type KeyStorage,
   type RevokeOutcome,
   type SaveOutcome,
@@ -38,6 +39,7 @@ export default function App() {
   const [status, setStatus] = useState<Status | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<ServiceInfo[]>([]);
+  const [businessCatalogue, setBusinessCatalogue] = useState<BusinessConnectorInfo[]>([]);
   const [catalogueError, setCatalogueError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>([]);
   const [busy, setBusy] = useState<Busy>(null);
@@ -98,9 +100,10 @@ export default function App() {
    * await loadAll();
    */
   async function loadAll() {
-    const [statusResult, catalogueResult, defaultsResult] = await Promise.allSettled([
+    const [statusResult, catalogueResult, businessResult, defaultsResult] = await Promise.allSettled([
       invoke<Status>("status"),
       invoke<ServiceInfo[]>("catalogue"),
+      invoke<BusinessConnectorInfo[]>("business_catalogue"),
       invoke<Selection>("default_selection"),
     ]);
     if (catalogueResult.status === "fulfilled") {
@@ -108,6 +111,9 @@ export default function App() {
       setCatalogueError(null);
     } else {
       setCatalogueError(ERROR_TEXT(catalogueResult.reason));
+    }
+    if (businessResult.status === "fulfilled") {
+      setBusinessCatalogue(businessResult.value);
     }
     if (statusResult.status === "fulfilled") {
       setStatus(statusResult.value);
@@ -410,11 +416,14 @@ export default function App() {
           {catalogue.map((info) => (
             <li key={info.service} className="p-4">
               <p className="font-medium">{info.name}</p>
+              {info.availability_reason !== null && (
+                <p className="mt-1 text-xs text-amber-700">{info.availability_reason}</p>
+              )}
               <label className="mt-2 flex items-start gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   className="mt-0.5"
-                  disabled={disabled}
+                  disabled={disabled || !info.enabled}
                   checked={HAS_LEVEL(selection, info.service, "read")}
                   onChange={(event) =>
                     setSelection(TOGGLE_LEVEL(selection, info.service, "read", event.target.checked))
@@ -426,7 +435,7 @@ export default function App() {
                 <input
                   type="checkbox"
                   className="mt-0.5"
-                  disabled={disabled}
+                  disabled={disabled || !info.enabled || !info.write_enabled}
                   checked={HAS_LEVEL(selection, info.service, "write")}
                   onChange={(event) =>
                     setSelection(TOGGLE_LEVEL(selection, info.service, "write", event.target.checked))
@@ -434,6 +443,18 @@ export default function App() {
                 />
                 {info.write}
               </label>
+            </li>
+          ))}
+        </ul>
+
+        <h2 className="pt-3 text-sm font-semibold text-slate-700">Google business connectors</h2>
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+          {businessCatalogue.map((info) => (
+            <li key={info.connector} className="p-4">
+              <p className="font-medium">{info.name}</p>
+              <p className="mt-1 text-xs text-slate-500">{info.availability_reason}</p>
+              <p className="mt-2 text-sm text-slate-500">{info.read}</p>
+              <p className="mt-1 text-sm text-slate-500">{info.write}</p>
             </li>
           ))}
         </ul>

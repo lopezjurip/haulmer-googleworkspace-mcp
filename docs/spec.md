@@ -116,6 +116,18 @@ The core owns the mapping from the person's selection to scopes. All scopes are 
 | Chat | `chat.spaces.readonly`, `chat.messages.readonly`, `chat.memberships.readonly` | `chat.messages` | Read |
 | Meet | `meetings.space.readonly` (also covers transcript entries) | `meetings.space.created` | Read |
 | Drive | `drive.readonly` | `drive` | none |
+| Docs | `documents.readonly` | `documents` | none |
+| Sheets | `spreadsheets.readonly` | `spreadsheets` | none |
+| Slides | `presentations.readonly` | `presentations` | none |
+| Forms | `forms.body.readonly` | `forms.body` | none |
+| Tasks | `tasks.readonly` | `tasks` | none |
+| People | `contacts.readonly` | `contacts` | none |
+
+The catalogue also displays Admin Reports, Admin Directory, Admin Groups and Cloud Identity.
+Those are disabled unless the account has Workspace administrator or delegated administrator
+permissions, and their write operations are intentionally not exposed by the personal-access
+model. YouTube, Google Ads, Analytics, Search Console, Business Profile and Merchant Center
+are separate business connectors: they reuse the OAuth account but do not use `gws` skills.
 
 Scopes are passed to `gws auth login --scopes` as **full URLs, comma-separated** (gws does not expand short names). gws always adds `openid`, `userinfo.email` and `userinfo.profile`; the core ignores these three when it compares granted levels.
 

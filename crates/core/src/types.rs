@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```
 /// use haulmer_connect_core::Service;
-/// assert_eq!(Service::ALL.len(), 5);
+/// assert_eq!(Service::ALL.len(), 15);
 /// assert_eq!(serde_json::to_string(&Service::Gmail).unwrap(), "\"gmail\"");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -22,16 +22,40 @@ pub enum Service {
     Chat,
     Meet,
     Drive,
+    Docs,
+    Sheets,
+    Slides,
+    Forms,
+    Tasks,
+    People,
+    #[serde(rename = "admin-reports")]
+    AdminReports,
+    #[serde(rename = "admin-directory")]
+    AdminDirectory,
+    #[serde(rename = "admin-groups")]
+    AdminGroups,
+    #[serde(rename = "cloud-identity")]
+    CloudIdentity,
 }
 
 impl Service {
     /// Every service, in the order the UI shows them.
-    pub const ALL: [Service; 5] = [
+    pub const ALL: [Service; 15] = [
         Service::Gmail,
         Service::Calendar,
         Service::Chat,
         Service::Meet,
         Service::Drive,
+        Service::Docs,
+        Service::Sheets,
+        Service::Slides,
+        Service::Forms,
+        Service::Tasks,
+        Service::People,
+        Service::AdminReports,
+        Service::AdminDirectory,
+        Service::AdminGroups,
+        Service::CloudIdentity,
     ];
 
     /// The service's lowercase name, as used in gws skill folders (`gws-<slug>*`) and JSON.
@@ -49,6 +73,16 @@ impl Service {
             Service::Chat => "chat",
             Service::Meet => "meet",
             Service::Drive => "drive",
+            Service::Docs => "docs",
+            Service::Sheets => "sheets",
+            Service::Slides => "slides",
+            Service::Forms => "forms",
+            Service::Tasks => "tasks",
+            Service::People => "people",
+            Service::AdminReports => "admin-reports",
+            Service::AdminDirectory => "admin-directory",
+            Service::AdminGroups => "admin-groups",
+            Service::CloudIdentity => "cloud-identity",
         }
     }
 }
@@ -361,8 +395,17 @@ pub enum RevokeOutcome {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::{Service, ServiceInfo};
-/// let info = ServiceInfo { service: Service::Gmail, name: "Gmail", read: "Read: read email", write: "Write: send and modify email" };
+/// use haulmer_connect_core::{Service, ServiceCategory, ServiceInfo};
+/// let info = ServiceInfo {
+///     service: Service::Gmail,
+///     name: "Gmail",
+///     read: "Read: read email",
+///     write: "Write: send and modify email",
+///     category: ServiceCategory::Workspace,
+///     enabled: true,
+///     availability_reason: None,
+///     write_enabled: true,
+/// };
 /// assert_eq!(info.name, "Gmail");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -374,6 +417,46 @@ pub struct ServiceInfo {
     pub read: &'static str,
     /// Description of the Write level.
     pub write: &'static str,
+    /// UI category for this capability.
+    pub category: ServiceCategory,
+    /// Whether this capability can be selected with the current account.
+    pub enabled: bool,
+    /// Whether the Write level is supported by this capability.
+    pub write_enabled: bool,
+    /// Explanation shown when the capability is unavailable.
+    pub availability_reason: Option<&'static str>,
+}
+
+/// UI category for a Google Workspace capability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ServiceCategory {
+    Workspace,
+    Admin,
+}
+
+/// A Google API outside the gws Workspace service catalogue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BusinessConnector {
+    Youtube,
+    GoogleAds,
+    Analytics,
+    SearchConsole,
+    BusinessProfile,
+    MerchantCenter,
+}
+
+/// Metadata for a business connector. Connectors use the shared OAuth account but
+/// require product-specific API calls and configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct BusinessConnectorInfo {
+    pub connector: BusinessConnector,
+    pub name: &'static str,
+    pub read: &'static str,
+    pub write: &'static str,
+    pub enabled: bool,
+    pub availability_reason: Option<&'static str>,
 }
 
 /// Skills written into one agent skills folder by `Core::install_skills`.

@@ -201,11 +201,40 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
             Service::Calendar,
             Service::Chat,
             Service::Meet,
-            Service::Drive
+            Service::Drive,
+            Service::Docs,
+            Service::Sheets,
+            Service::Slides,
+            Service::Forms,
+            Service::Tasks,
+            Service::People,
+            Service::AdminReports,
+            Service::AdminDirectory,
+            Service::AdminGroups,
+            Service::CloudIdentity,
         ]
     );
     let names: Vec<&str> = catalogue.iter().map(|info| info.name).collect();
-    assert_eq!(names, ["Gmail", "Calendar", "Chat", "Meet", "Drive"]);
+    assert_eq!(
+        names,
+        [
+            "Gmail",
+            "Calendar",
+            "Chat",
+            "Meet",
+            "Drive",
+            "Docs",
+            "Sheets",
+            "Slides",
+            "Forms",
+            "Tasks",
+            "People",
+            "Admin Reports",
+            "Admin Directory",
+            "Admin Groups",
+            "Cloud Identity",
+        ]
+    );
     assert_eq!(catalogue[0].read, "Read: read email");
     assert_eq!(catalogue[0].write, "Write: send and modify email");
     for info in &catalogue {
@@ -218,4 +247,7 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
             "{info:?}"
         );
     }
+    assert!(catalogue[..11].iter().all(|info| info.enabled));
+    assert!(catalogue[11..].iter().all(|info| !info.enabled));
+    assert!(catalogue[11..].iter().all(|info| !info.write_enabled));
 }

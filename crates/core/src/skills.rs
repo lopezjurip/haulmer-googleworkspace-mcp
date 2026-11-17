@@ -249,7 +249,40 @@ impl Core {
                 actual,
             });
         }
-        extract_skills(&archive)
+        let mut skills = extract_skills(&archive)?;
+        add_builtin_workspace_skills(&mut skills);
+        Ok(skills)
+    }
+}
+
+/// Adds stable generic skills for Workspace APIs that may not exist in the pinned
+/// gws skill tarball. The CLI still discovers their live methods with `help`/`schema`.
+fn add_builtin_workspace_skills(skills: &mut BTreeMap<String, SkillFiles>) {
+    for service in [
+        Service::Docs,
+        Service::Sheets,
+        Service::Slides,
+        Service::Forms,
+        Service::Tasks,
+    ] {
+        let name = format!("gws-{}", service.slug());
+        skills.entry(name.clone()).or_insert_with(|| {
+            let content = format!(
+                "---\nname: {name}\ndescription: Google Workspace {} API.\n---\n\n\
+                 # {name}\n\
+                 Read `../gws-shared/SKILL.md` first.\n\n\
+                 Discover available resources and methods with:\n\
+                 ```bash\n\
+                 gws {} --help\n\
+                 gws schema {}.<resource>.<method>\n\
+                 ```\n\n\
+                 Always request JSON output and inspect the schema before write operations.\n",
+                service.slug(),
+                service.slug(),
+                service.slug(),
+            );
+            BTreeMap::from([(PathBuf::from("SKILL.md"), content.into_bytes())])
+        });
     }
 }
 

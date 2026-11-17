@@ -181,6 +181,24 @@ fn installs_shared_and_granted_service_skills_into_both_agents() {
 }
 
 #[test]
+fn adds_generic_p0_skills_when_the_pinned_archive_does_not_have_them() {
+    let fixture = Fixture::new(&[".claude"], tarball(|_| {}));
+
+    fixture
+        .core
+        .install_skills_for(&Selection::from_levels([
+            (Service::Docs, Level::Read),
+            (Service::Sheets, Level::Write),
+        ]))
+        .unwrap();
+
+    let dir = fixture.skills_dir(".claude");
+    assert!(dir.join("gws-docs/SKILL.md").is_file());
+    assert!(dir.join("gws-sheets/SKILL.md").is_file());
+    assert!(!dir.join("gws-slides").exists());
+}
+
+#[test]
 fn removes_skills_it_installed_for_services_no_longer_granted_and_keeps_others() {
     let fixture = Fixture::new(&[".claude"], tarball(|_| {}));
     let dir = fixture.skills_dir(".claude");

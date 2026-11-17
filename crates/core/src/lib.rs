@@ -58,8 +58,9 @@ pub use ports::{
 pub use system_http::SystemHttp;
 pub use system_runner::SystemRunner;
 pub use types::{
-    CoreError, InstalledSkills, KeyStorage, Level, Paths, RevokeOutcome, SaveOutcome, Selection,
-    Service, ServiceInfo, ServiceLevel, Settings, Status,
+    BusinessConnector, BusinessConnectorInfo, CoreError, InstalledSkills, KeyStorage, Level, Paths,
+    RevokeOutcome, SaveOutcome, Selection, Service, ServiceCategory, ServiceInfo, ServiceLevel,
+    Settings, Status,
 };
 
 /// The core. Thread-safe: the Tauri layer shares one instance across commands, so

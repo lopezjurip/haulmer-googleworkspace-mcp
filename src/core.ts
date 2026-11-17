@@ -4,7 +4,22 @@
  */
 
 /** A Google Workspace service, e.g. `"gmail"`. */
-export type Service = "gmail" | "calendar" | "chat" | "meet" | "drive";
+export type Service =
+  | "gmail"
+  | "calendar"
+  | "chat"
+  | "meet"
+  | "drive"
+  | "docs"
+  | "sheets"
+  | "slides"
+  | "forms"
+  | "tasks"
+  | "people"
+  | "admin-reports"
+  | "admin-directory"
+  | "admin-groups"
+  | "cloud-identity";
 
 /** Access level for one service; `write` always implies `read`. */
 export type Level = "read" | "write";
@@ -45,6 +60,29 @@ export type ServiceInfo = {
   name: string;
   read: string;
   write: string;
+  category: "workspace" | "admin";
+  enabled: boolean;
+  write_enabled: boolean;
+  availability_reason: string | null;
+};
+
+/** Google APIs that use the shared OAuth account but are not gws services yet. */
+export type BusinessConnector =
+  | "youtube"
+  | "google-ads"
+  | "analytics"
+  | "search-console"
+  | "business-profile"
+  | "merchant-center";
+
+/** Planned business connector shown separately from the Workspace scope catalogue. */
+export type BusinessConnectorInfo = {
+  connector: BusinessConnector;
+  name: string;
+  read: string;
+  write: string;
+  enabled: boolean;
+  availability_reason: string | null;
 };
 
 /** Skills written into one agent skills folder by `install_skills`; `skipped` were left alone (not installed by this app). */

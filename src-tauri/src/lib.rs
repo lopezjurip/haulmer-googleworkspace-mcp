@@ -4,8 +4,8 @@
 use std::path::PathBuf;
 
 use haulmer_connect_core::{
-    Core, CoreError, InstalledSkills, KeyStorage, Paths, RevokeOutcome, SaveOutcome, Selection,
-    ServiceInfo, Status, mcp, scopes,
+    BusinessConnectorInfo, Core, CoreError, InstalledSkills, KeyStorage, Paths, RevokeOutcome,
+    SaveOutcome, Selection, ServiceInfo, Status, mcp, scopes,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
@@ -122,6 +122,18 @@ fn catalogue() -> Vec<ServiceInfo> {
     scopes::catalogue()
 }
 
+/// Business APIs reserved for dedicated connectors that share the OAuth account.
+///
+/// # Example
+///
+/// ```js
+/// const connectors = await invoke("business_catalogue");
+/// ```
+#[tauri::command]
+fn business_catalogue() -> Vec<BusinessConnectorInfo> {
+    scopes::business_catalogue()
+}
+
 /// `scopes::default_selection`.
 ///
 /// # Example
@@ -189,6 +201,7 @@ pub fn run() {
             set_config_dir,
             set_key_storage,
             catalogue,
+            business_catalogue,
             default_selection,
             add_to_claude_desktop,
             add_to_chatgpt
