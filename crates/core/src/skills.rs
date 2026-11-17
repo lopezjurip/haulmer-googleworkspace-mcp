@@ -180,23 +180,54 @@ impl Core {
         Ok(())
     }
 
-    /// The "Environment" section for `gws-shared/SKILL.md` when the config folder or the
-    /// key storage is not the gws default; `None` otherwise.
+    /// The "Environment" section for `gws-shared/SKILL.md` when agents need extra setup:
+    /// the gws binary the app uses is not on PATH, the config folder is custom, or the key
+    /// storage is not keyring. `None` when gws defaults work as-is.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // custom folder + downloaded gws:
+    /// // export PATH='<app_data>/bin':"$PATH"
+    /// // export GOOGLE_WORKSPACE_CLI_CONFIG_DIR='<dir>'
+    /// // export GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file
+    /// let section = self.environment_section()?;
+    /// ```
     fn environment_section(&self) -> Result<Option<String>, CoreError> {
         let settings = self.settings()?;
         let backend = settings.resolved_key_storage().backend();
-        if settings.is_default_config_dir() && backend == "keyring" {
+        let mut lines = Vec::new();
+        // `find_gws` returns the bare name "gws" only when it is found on PATH.
+        if let Some(gws) = self.find_gws()? {
+            if gws != Path::new("gws") {
+                if let Some(dir) = gws.parent() {
+                    lines.push(format!(
+                        "export PATH={}:\"$PATH\"",
+                        shell_quote(&dir.to_string_lossy())
+                    ));
+                }
+            }
+        }
+        if !settings.is_default_config_dir() {
+            lines.push(format!(
+                "export GOOGLE_WORKSPACE_CLI_CONFIG_DIR={}",
+                shell_quote(&settings.active_config_dir(&self.paths).to_string_lossy())
+            ));
+        }
+        if !settings.is_default_config_dir() || backend != "keyring" {
+            lines.push(format!(
+                "export GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND={backend}"
+            ));
+        }
+        if lines.is_empty() {
             return Ok(None);
         }
         Ok(Some(format!(
             "\n## Environment\n\n\
-             haulmer-connect keeps the gws credentials outside the default folder. \
+             haulmer-connect set up gws for this machine. \
              Always run gws with these variables set:\n\n\
-             ```bash\n\
-             export GOOGLE_WORKSPACE_CLI_CONFIG_DIR={}\n\
-             export GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND={backend}\n\
-             ```\n",
-            shell_quote(&settings.active_config_dir(&self.paths).to_string_lossy())
+             ```bash\n{}\n```\n",
+            lines.join("\n")
         )))
     }
 

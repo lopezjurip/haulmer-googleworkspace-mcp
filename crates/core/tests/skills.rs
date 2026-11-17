@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use haulmer_connect_core::skills::SKILLS_TARBALL_URL;
-use haulmer_connect_core::testing::{FakeHttp, FakeRunner};
+use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner};
 use haulmer_connect_core::{
     Core, CoreError, HttpResponse, InstalledSkills, Level, Paths, Selection, Service,
 };
@@ -227,6 +227,45 @@ fn custom_config_folder_adds_an_environment_section_to_the_shared_skill() {
             custom.display()
         )), "{shared}");
     }
+}
+
+#[test]
+fn a_downloaded_gws_not_on_path_adds_its_folder_to_path_in_the_shared_skill() {
+    let home = TempDir::new().unwrap();
+    let app_data = TempDir::new().unwrap();
+    fs::create_dir(home.path().join(".claude")).unwrap();
+    let bin = app_data.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    let gws = bin.join(if cfg!(windows) { "gws.exe" } else { "gws" });
+    fs::write(&gws, "").unwrap();
+    let runner = Arc::new(FakeRunner::new());
+    // Only the downloaded copy answers; bare `gws` (PATH) has no rule and so is not found.
+    runner.on_program(gws.clone(), &["--version"], FakeReply::ok("gws 0.22.5\n"));
+    let archive = tarball(|_| {});
+    let sha256: String = Sha256::digest(&archive)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    let http = Arc::new(FakeHttp::new());
+    http.on(SKILLS_TARBALL_URL, HttpResponse::ok(archive));
+    let paths = Paths {
+        home: home.path().into(),
+        app_data: app_data.path().into(),
+    };
+    let core = Core::new(paths, runner, http).with_skills_sha256(&sha256);
+
+    core.install_skills_for(&Selection::new()).unwrap();
+
+    let shared =
+        fs::read_to_string(home.path().join(".claude/skills/gws-shared/SKILL.md")).unwrap();
+    assert!(
+        shared.contains(&format!("export PATH='{}':\"$PATH\"\n", bin.display())),
+        "{shared}"
+    );
+    assert!(
+        !shared.contains("GOOGLE_WORKSPACE_CLI_CONFIG_DIR"),
+        "{shared}"
+    );
 }
 
 #[test]
