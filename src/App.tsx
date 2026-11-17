@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import {
   ERROR_TEXT,
   HAS_LEVEL,
@@ -20,7 +22,7 @@ import {
 const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
 
 /** The one action running right now; controls stay disabled while one runs. */
-type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | null;
+type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | "update" | null;
 
 /** Feedback shown after an action. */
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
@@ -41,14 +43,52 @@ export default function App() {
   const [busy, setBusy] = useState<Busy>(null);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const [update, setUpdate] = useState<Update | null>(null);
 
   useEffect(() => {
     const unlisten = listen<string>("auth-url", (event) => setAuthUrl(event.payload));
     loadAll();
+    checkForUpdate();
     return () => {
       unlisten.then((stop) => stop());
     };
   }, []);
+
+  /**
+   * Looks for a newer release on start. A failed check is silent (console only).
+   *
+   * @example
+   * await checkForUpdate();
+   */
+  async function checkForUpdate() {
+    try {
+      setUpdate(await check());
+    } catch (error) {
+      console.error("Update check failed:", error);
+    }
+  }
+
+  /**
+   * Downloads and installs the available update, then restarts the app.
+   *
+   * @example
+   * <button onClick={handleInstallUpdate}>Install and restart</button>
+   */
+  async function handleInstallUpdate() {
+    if (update === null) {
+      return;
+    }
+    setBusy("update");
+    setNotice(null);
+    try {
+      await update.downloadAndInstall();
+      await relaunch();
+    } catch (error) {
+      setNotice({ kind: "error", text: ERROR_TEXT(error) });
+    } finally {
+      setBusy(null);
+    }
+  }
 
   /**
    * Loads the status, the service labels and the starting selection
@@ -330,6 +370,20 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-xl space-y-6 p-8 font-sans text-slate-900">
+      {update !== null && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+          <span className="text-slate-700">Version {update.version} is available</span>
+          <button
+            type="button"
+            className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+            disabled={disabled}
+            onClick={handleInstallUpdate}
+          >
+            {busy === "update" ? "Installing…" : "Install and restart"}
+          </button>
+        </div>
+      )}
+
       <header>
         <h1 className="text-xl font-semibold">haulmer-connect</h1>
         <p className="mt-1 text-sm text-slate-500">Connect your AI agents to Google Workspace.</p>

@@ -70,7 +70,22 @@ CI (`.github/workflows/ci.yml`) runs `cargo test --workspace` and `pnpm build` o
 request and push to `main`. Pushing a `v*` tag runs `.github/workflows/release.yml`, which
 builds a Windows x64 NSIS installer (`.exe`) and macOS `.dmg` files for Apple Silicon
 (`aarch64`) and Intel (`x64`), writes a `.sha256` file per installer plus `SHA256SUMS.txt`,
-and attaches them to a **draft** GitHub Release.
+signs the update files (`.app.tar.gz`, `*-setup.exe`) with the updater key, generates
+`latest.json`, and attaches everything to a **draft** GitHub Release. The app reads
+`latest.json` from the latest **published** release, so users see the update only after you
+publish the draft.
+
+Two repository secrets are required (Settings → Secrets and variables → Actions); the build
+fails without them:
+
+- `TAURI_SIGNING_PRIVATE_KEY`: contents of the updater private key.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: its password.
+
+The private key lives outside the repo; only the public key is committed
+(`plugins.updater.pubkey` in `src-tauri/tauri.conf.json`). **If you lose the key, installed
+apps can no longer update**: users must download and reinstall a new build by hand (a new
+key means a new `pubkey`). A local `pnpm tauri build` also needs `TAURI_SIGNING_PRIVATE_KEY`
+(or `TAURI_SIGNING_PRIVATE_KEY_PATH`) set, because updater files are always created.
 
 To cut a release:
 

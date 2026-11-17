@@ -149,7 +149,9 @@ Write always implies Read for the same service.
 - Public repository `github.com/haulmer/haulmer-connect`.
 - CI builds a Windows x64 installer (`.exe`) and macOS `.dmg` files for Apple Silicon and Intel, and publishes them with SHA-256 checksums to GitHub Releases.
 - The pilot builds are **not code-signed**. Signing (Apple Developer ID + notarization, Windows code-signing certificate) is a precondition for company-wide rollout.
-- Updates are manual for the pilot (download the new release).
+- In-app updates use the Tauri updater plugin with a static `latest.json` on GitHub Releases (`https://github.com/haulmer/haulmer-connect/releases/latest/download/latest.json`, so it follows the latest published release). The release workflow builds it with the update files and their signatures (`darwin-aarch64`, `darwin-x86_64`, `windows-x86_64`).
+- Update files are signed with a minisign key. The public key is committed in `tauri.conf.json`; the private key and its password are CI secrets (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) and a copy is kept outside the repo. Losing it means installed apps cannot update; users reinstall by hand.
+- The app checks for an update on start. A failed check is silent. When one exists, a banner offers "Install and restart"; nothing installs without the person's click. This signature check is separate from code signing: it proves an update came from the Haulmer key, but the OS still shows the unsigned-app warnings on first install.
 
 ### Third-party due diligence (checked 2026-11-16)
 
@@ -158,7 +160,7 @@ Every dependency was checked for deprecation, last release, popularity and known
 - tauri 2.12.6 (113k stars, release 2026-11-16; all recorded advisories fixed in earlier versions)
 - React 19.3.1, Vite 8.3.8, Tailwind CSS 4.3.5: active, 0 known vulnerabilities in the current version
 - gws 0.22.5: 32k stars, 0 known vulnerabilities; README states it is **not an officially supported Google product**; last release March 2026
-- Rust crates approved by the owner 2026-11-16 (crates.io + osv.dev checked that day; 0 advisories, none yanked): serde 1.0.229, serde_json 1.0.154, thiserror 2.0.21, sha2 0.11.1, ureq 3.5.2, flate2 1.1.11, tar 0.4.46, zip 9.6.1, tauri-plugin-opener 2.7.3, tauri-plugin-dialog 2.8.4; dev: tempfile 3.27.0. npm: @tauri-apps/api 2.12.5, @tauri-apps/plugin-opener 2.7.3, @tauri-apps/plugin-dialog 2.8.4. Any other dependency needs the same check and the owner's OK.
+- Rust crates approved by the owner 2026-11-16 (crates.io + osv.dev checked that day; 0 advisories, none yanked): serde 1.0.229, serde_json 1.0.154, thiserror 2.0.21, sha2 0.11.1, ureq 3.5.2, flate2 1.1.11, tar 0.4.46, zip 9.6.1, tauri-plugin-opener 2.7.3, tauri-plugin-dialog 2.8.4, tauri-plugin-updater 2.14.1, tauri-plugin-process 2.4.0; dev: tempfile 3.27.0. npm: @tauri-apps/api 2.12.5, @tauri-apps/plugin-opener 2.7.3, @tauri-apps/plugin-dialog 2.8.4, @tauri-apps/plugin-updater 2.14.1, @tauri-apps/plugin-process 2.4.0. The updater and process plugins were approved by the owner 2026-11-16 (crates.io, npm and osv.dev checked that day; 0 advisories). Any other dependency needs the same check and the owner's OK.
 - Toolchain dependencies approved by the owner 2026-11-16: npm dev @tauri-apps/cli, @vitejs/plugin-react, @tailwindcss/vite, typescript 7.x, @types/react, @types/react-dom; cargo build-dep tauri-build.
 - Rejected: `reqwest` (21 dependencies, async; `ureq` is enough behind the HTTP port), `hex` (inline hex encoding instead), `arctic` (deprecated), `googleapis` npm (246 MB), `tiny_http` (no release since 2022)
 
@@ -189,7 +191,7 @@ Every dependency was checked for deprecation, last release, popularity and known
 - Domain-wide delegation or any service account impersonation.
 - Any Haulmer server that stores or proxies tokens.
 - Usage statistics inside the app; admin visibility comes from the Workspace Admin console only.
-- Auto-update, code signing, Linux builds and Windows ARM builds (all for company-wide rollout).
+- Silent auto-install, code signing, Linux builds and Windows ARM builds (all for company-wide rollout).
 - Commands of our own for Google APIs; agents use `gws` commands.
 
 ## Further Notes
