@@ -8,7 +8,12 @@ use haulmer_connect_core::{
     RevokeOutcome, SaveOutcome, Selection, ServiceInfo, Status, mcp, scopes,
 };
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{
+    AppHandle, Emitter, Manager, State, WindowEvent,
+    image::Image,
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+};
 use tauri_plugin_opener::OpenerExt;
 
 /// Bundle identifier of the app (`identifier` in `tauri.conf.json`); the app data folder is named after it.
@@ -208,12 +213,43 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            let open = MenuItemBuilder::with_id("open", "Open haulmer-connect").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit haulmer-connect").build(app)?;
+            let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
+            TrayIconBuilder::new()
+                .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
+                .menu(&menu)
+                .show_menu_on_left_click(true)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "open" => show_main_window(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_main_window(tray.app_handle());
+                    }
+                })
+                .build(app)?;
             let paths = Paths {
                 home: app.path().home_dir()?,
                 app_data: app.path().app_data_dir()?,
             };
             app.manage(Core::system(paths));
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             status,
@@ -232,6 +268,15 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Shows and focuses the main window from the tray menu or icon.
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 /// Runs the MCP server on stdin/stdout (`haulmer-connect mcp`), with no window. Uses the same
