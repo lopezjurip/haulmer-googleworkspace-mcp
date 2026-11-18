@@ -182,22 +182,24 @@ function AccessControl({
       <SegmentedControlIndicator className="rounded bg-white shadow-sm dark:bg-slate-600" />
       <SegmentedControlItem
         value="off"
-        className="relative rounded px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white sm:px-2"
       >
         Apagado
       </SegmentedControlItem>
       <SegmentedControlItem
         value="read"
-        className="relative rounded px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white sm:px-2"
       >
-        Solo Lectura
+        <span className="sm:hidden">Lectura</span>
+        <span className="hidden sm:inline">Solo Lectura</span>
       </SegmentedControlItem>
       <SegmentedControlItem
         value="write"
         disabled={writeDisabled}
-        className="relative rounded px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white sm:px-2"
       >
-        Acceso completo
+        <span className="sm:hidden">Completo</span>
+        <span className="hidden sm:inline">Acceso completo</span>
       </SegmentedControlItem>
     </SegmentedControl>
   );
