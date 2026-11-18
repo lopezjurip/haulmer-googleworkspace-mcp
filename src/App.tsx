@@ -552,6 +552,33 @@ export default function App() {
     accountText = "Sin conexión";
   }
 
+  const accountInitials =
+    status?.account
+      ?.split("@")[0]
+      .split(/[._-]/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "?";
+  const disabled = busy !== null;
+  const selectionKey = (items: Array<object>) =>
+    JSON.stringify([...items].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+  const hasChanges =
+    status !== null &&
+    (status.account === null
+      ? selection.length > 0 || businessSelection.length > 0
+      : selectionKey(selection) !== selectionKey(status.granted) ||
+        selectionKey(businessSelection) !== selectionKey(status.business_granted));
+  const saveDisabled = disabled || !hasChanges;
+  const statusDotClass =
+    status === null || statusError !== null
+      ? "bg-amber-400"
+      : status.account !== null && status.token_valid
+        ? "bg-emerald-500"
+        : status.account !== null
+          ? "bg-amber-400"
+          : "bg-slate-400";
+
   let noticeClass = "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200";
   if (notice?.kind === "success") {
     noticeClass = "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200";
@@ -566,10 +593,9 @@ export default function App() {
     keyStorageHint = "Automático usa el llavero del sistema.";
   }
 
-  const disabled = busy !== null;
-
   return (
-    <main className="mx-auto min-h-screen max-w-xl space-y-6 bg-white p-8 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <>
+      <main className="mx-auto min-h-screen max-w-xl space-y-6 bg-white p-8 pb-32 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {update !== null && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900">
           <span className="text-slate-700 dark:text-slate-200">La versión {update.version} está disponible</span>
@@ -589,9 +615,7 @@ export default function App() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Conecta tus agentes de IA a Google Workspace.</p>
       </header>
 
-      <section className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Cuenta de Google</p>
-        <p className="mt-1 font-medium">{accountText}</p>
+      <section className="space-y-2">
         {statusError !== null && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{statusError}</p>}
         {status !== null && status.account !== null && !status.token_valid && (
           <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">La sesión expiró. Pulsa Guardar para iniciar sesión nuevamente.</p>
@@ -676,19 +700,6 @@ export default function App() {
             >
               Cancelar
             </button>
-          </div>
-        )}
-        {busy !== "save" && (
-          <div>
-            <button
-              type="button"
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-              disabled={disabled || (selection.length === 0 && !status?.account)}
-              onClick={handleSave}
-            >
-              Guardar
-            </button>
-            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Quitar un servicio requiere iniciar sesión nuevamente en Google.</p>
           </div>
         )}
       </section>
@@ -791,6 +802,31 @@ export default function App() {
           </label>
         </div>
       </details>
-    </main>
+      </main>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-700/80 dark:bg-slate-950/95 dark:shadow-[0_-8px_24px_rgba(0,0,0,0.25)]">
+        <div className="mx-auto flex max-w-xl items-center gap-3">
+          <div className="relative shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
+              {accountInitials}
+            </div>
+            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-950 ${statusDotClass}`} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{accountText}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {hasChanges ? "Hay cambios sin guardar" : status?.account ? "Todo guardado" : "Selecciona servicios para conectar"}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            disabled={saveDisabled}
+            onClick={handleSave}
+          >
+            {busy === "save" ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
