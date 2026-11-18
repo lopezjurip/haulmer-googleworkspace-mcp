@@ -234,8 +234,8 @@ pub fn run() {
             let open = MenuItemBuilder::with_id("open", "Abrir configuración").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app)?;
             let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
-            TrayIconBuilder::with_id("main")
-                .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
+            let tray = TrayIconBuilder::with_id("main")
+                .icon(Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?)
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
@@ -244,6 +244,7 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+            tray.set_icon_as_template(true)?;
             let paths = Paths {
                 home: app.path().home_dir()?,
                 app_data: app.path().app_data_dir()?,
