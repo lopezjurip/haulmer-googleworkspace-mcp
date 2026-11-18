@@ -21,11 +21,6 @@ import {
   type ServiceInfo,
   type Status,
 } from "./core";
-import {
-  SegmentedControl,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-} from "@ui-sdk/react/segmented-control";
 import adminIcon from "./assets/service-icons/admin.png";
 import businessIntelligenceIcon from "./assets/service-icons/business-intelligence.png";
 import calendarIcon from "./assets/service-icons/calendar.png";
@@ -175,41 +170,41 @@ function AccessControl({
   writeDisabled?: boolean;
   ariaLabel: string;
 }) {
+  const options: Array<{ value: AccessChoice; label: string; shortLabel: string }> = [
+    { value: "off", label: "Apagado", shortLabel: "Apagado" },
+    { value: "read", label: "Solo Lectura", shortLabel: "Lectura" },
+    { value: "write", label: "Acceso completo", shortLabel: "Completo" },
+  ];
+
   return (
-    <SegmentedControl
+    <div
+      role="group"
       aria-label={ariaLabel}
-      value={value}
-      onValueChange={(next) => {
-        if (next === "off" || next === "read" || next === "write") {
-          onChange(next);
-        }
-      }}
-      disabled={disabled}
-      className="isolate inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-zinc-700"
+      className="inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-zinc-700"
     >
-      <SegmentedControlIndicator className="rounded-md bg-zinc-900 shadow-sm dark:bg-zinc-100" />
-      <SegmentedControlItem
-        value="off"
-        className="relative rounded-md px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-100 data-[checked]:font-medium data-[checked]:text-white dark:text-zinc-300 dark:hover:bg-zinc-800 dark:data-[checked]:text-zinc-950 sm:px-2.5"
-      >
-        Apagado
-      </SegmentedControlItem>
-      <SegmentedControlItem
-        value="read"
-        className="relative rounded-md px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-100 data-[checked]:font-medium data-[checked]:text-white dark:text-zinc-300 dark:hover:bg-zinc-800 dark:data-[checked]:text-zinc-950 sm:px-2.5"
-      >
-        <span className="sm:hidden">Lectura</span>
-        <span className="hidden sm:inline">Solo Lectura</span>
-      </SegmentedControlItem>
-      <SegmentedControlItem
-        value="write"
-        disabled={writeDisabled}
-        className="relative rounded-md px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-100 data-[checked]:font-medium data-[checked]:text-white dark:text-zinc-300 dark:hover:bg-zinc-800 dark:data-[checked]:text-zinc-950 sm:px-2.5"
-      >
-        <span className="sm:hidden">Completo</span>
-        <span className="hidden sm:inline">Acceso completo</span>
-      </SegmentedControlItem>
-    </SegmentedControl>
+      {options.map((option) => {
+        const isSelected = value === option.value;
+        const isDisabled = disabled || (option.value === "write" && writeDisabled);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={isSelected}
+            aria-label={option.label}
+            disabled={isDisabled}
+            onClick={() => onChange(option.value)}
+            className={`rounded-md px-2 py-1 text-xs transition-colors sm:px-2.5 ${
+              isSelected
+                ? "bg-zinc-900 font-medium text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-950"
+                : "text-slate-600 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            <span className="sm:hidden">{option.shortLabel}</span>
+            <span className="hidden sm:inline">{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
