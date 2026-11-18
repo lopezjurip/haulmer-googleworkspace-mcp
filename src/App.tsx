@@ -185,18 +185,18 @@ function AccessControl({
         }
       }}
       disabled={disabled}
-      className="isolate inline-flex rounded-full border border-slate-200 bg-slate-100 p-1 dark:border-zinc-700 dark:bg-zinc-800"
+      className="isolate inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-zinc-700"
     >
-      <SegmentedControlIndicator className="rounded-full bg-zinc-900 shadow-sm dark:bg-zinc-100" />
+      <SegmentedControlIndicator className="rounded-md bg-zinc-900 shadow-sm dark:bg-zinc-100" />
       <SegmentedControlItem
         value="off"
-        className="relative rounded-full px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-semibold data-[checked]:text-white dark:text-zinc-300 dark:data-[checked]:text-zinc-950 sm:px-2.5"
+        className="relative rounded-md px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-100 data-[checked]:font-medium data-[checked]:text-white dark:text-zinc-300 dark:hover:bg-zinc-800 dark:data-[checked]:text-zinc-950 sm:px-2.5"
       >
         Apagado
       </SegmentedControlItem>
       <SegmentedControlItem
         value="read"
-        className="relative rounded-full px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-semibold data-[checked]:text-white dark:text-zinc-300 dark:data-[checked]:text-zinc-950 sm:px-2.5"
+        className="relative rounded-md px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-100 data-[checked]:font-medium data-[checked]:text-white dark:text-zinc-300 dark:hover:bg-zinc-800 dark:data-[checked]:text-zinc-950 sm:px-2.5"
       >
         <span className="sm:hidden">Lectura</span>
         <span className="hidden sm:inline">Solo Lectura</span>
@@ -204,7 +204,7 @@ function AccessControl({
       <SegmentedControlItem
         value="write"
         disabled={writeDisabled}
-        className="relative rounded-full px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-semibold data-[checked]:text-white dark:text-zinc-300 dark:data-[checked]:text-zinc-950 sm:px-2.5"
+        className="relative rounded-md px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-100 data-[checked]:font-medium data-[checked]:text-white dark:text-zinc-300 dark:hover:bg-zinc-800 dark:data-[checked]:text-zinc-950 sm:px-2.5"
       >
         <span className="sm:hidden">Completo</span>
         <span className="hidden sm:inline">Acceso completo</span>
