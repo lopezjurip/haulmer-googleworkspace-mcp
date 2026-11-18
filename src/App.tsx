@@ -97,7 +97,7 @@ function ServiceIcon({ src, label }: { src?: string; label: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-zinc-800 dark:text-zinc-300"
     >
       {label.charAt(0)}
     </span>
@@ -177,18 +177,18 @@ function AccessControl({
         }
       }}
       disabled={disabled}
-      className="isolate inline-flex rounded-md border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800"
+      className="isolate inline-flex rounded-md border border-slate-200 bg-slate-100 p-1 dark:border-zinc-700 dark:bg-zinc-800"
     >
-      <SegmentedControlIndicator className="rounded bg-white shadow-sm dark:bg-slate-600" />
+      <SegmentedControlIndicator className="rounded bg-white shadow-sm dark:bg-zinc-600" />
       <SegmentedControlItem
         value="off"
-        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white sm:px-2"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-zinc-300 dark:data-[checked]:text-white sm:px-2"
       >
         Apagado
       </SegmentedControlItem>
       <SegmentedControlItem
         value="read"
-        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white sm:px-2"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-zinc-300 dark:data-[checked]:text-white sm:px-2"
       >
         <span className="sm:hidden">Lectura</span>
         <span className="hidden sm:inline">Solo Lectura</span>
@@ -196,7 +196,7 @@ function AccessControl({
       <SegmentedControlItem
         value="write"
         disabled={writeDisabled}
-        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white sm:px-2"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-zinc-300 dark:data-[checked]:text-white sm:px-2"
       >
         <span className="sm:hidden">Completo</span>
         <span className="hidden sm:inline">Acceso completo</span>
@@ -583,7 +583,7 @@ export default function App() {
   if (notice?.kind === "success") {
     noticeClass = "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200";
   } else if (notice?.kind === "info") {
-    noticeClass = "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200";
+    noticeClass = "border-slate-200 bg-slate-50 text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
   }
 
   let keyStorageHint = "";
@@ -595,13 +595,13 @@ export default function App() {
 
   return (
     <>
-      <main className="mx-auto min-h-screen max-w-xl space-y-6 bg-white p-8 pb-32 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <main className="mx-auto min-h-screen max-w-xl space-y-6 bg-white p-8 pb-32 font-sans text-slate-900 dark:bg-zinc-950 dark:text-zinc-100">
       {update !== null && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900">
-          <span className="text-slate-700 dark:text-slate-200">La versión {update.version} está disponible</span>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+          <span className="text-slate-700 dark:text-zinc-200">La versión {update.version} está disponible</span>
           <button
             type="button"
-            className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
             disabled={disabled}
             onClick={handleInstallUpdate}
           >
@@ -612,25 +612,25 @@ export default function App() {
 
       <header>
         <h1 className="text-xl font-semibold">haulmer-connect</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Conecta tus agentes de IA a Google Workspace.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Conecta tus agentes de IA a Google Workspace.</p>
       </header>
 
       <section className="space-y-2">
-        {statusError !== null && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{statusError}</p>}
+        {statusError !== null && <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">{statusError}</p>}
         {status !== null && status.account !== null && !status.token_valid && (
           <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">La sesión expiró. Pulsa Guardar para iniciar sesión nuevamente.</p>
         )}
         {status !== null && !status.gws_available && (
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">gws se descargará al pulsar Guardar.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">gws se descargará al pulsar Guardar.</p>
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Lo que pueden usar tus agentes</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Lo que pueden usar tus agentes</h2>
         {catalogueError !== null && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Servicios no disponibles: {catalogueError}</p>
+          <p className="text-sm text-slate-500 dark:text-zinc-400">Servicios no disponibles: {catalogueError}</p>
         )}
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-zinc-800 dark:border-zinc-700">
           {catalogue.map((info) => (
             <li key={info.service} className="flex items-center gap-3 px-3 py-2.5">
               <ServiceIcon src={SERVICE_ICONS[info.service]} label={info.name} />
@@ -655,8 +655,8 @@ export default function App() {
           ))}
         </ul>
 
-        <h2 className="pt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Conectores empresariales de Google</h2>
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
+        <h2 className="pt-3 text-sm font-semibold text-slate-700 dark:text-zinc-200">Conectores empresariales de Google</h2>
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-zinc-800 dark:border-zinc-700">
           {businessCatalogue.map((info) => (
             <li key={info.connector} className="flex items-center gap-3 px-3 py-2.5">
               <ServiceIcon src={BUSINESS_ICONS[info.connector]} label={info.name} />
@@ -683,10 +683,10 @@ export default function App() {
         </ul>
 
         {busy === "save" && (
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-900">
-            {authUrl === null && <span className="text-slate-600 dark:text-slate-300">Preparando…</span>}
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm dark:bg-zinc-900">
+            {authUrl === null && <span className="text-slate-600 dark:text-zinc-300">Preparando…</span>}
             {authUrl !== null && (
-              <span className="text-slate-600 dark:text-slate-300">
+              <span className="text-slate-600 dark:text-zinc-300">
                 Esperando el inicio de sesión de Google…{" "}
                 <button type="button" className="underline" onClick={() => openUrl(authUrl)}>
                   Abrir nuevamente
@@ -695,7 +695,7 @@ export default function App() {
             )}
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1 hover:bg-white dark:border-slate-600 dark:hover:bg-slate-800"
+              className="rounded-md border border-slate-300 px-3 py-1 hover:bg-white dark:border-zinc-600 dark:hover:bg-zinc-800"
               onClick={handleCancel}
             >
               Cancelar
@@ -712,14 +712,14 @@ export default function App() {
         <span className="font-medium">Usar desde aplicaciones de IA de escritorio</span>
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
+          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
           disabled={disabled}
           onClick={handleCopyInstallPrompt}
         >
           Copiar prompt de instalación
         </button>
         {showInstallPrompt && (
-          <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+          <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600 dark:bg-zinc-900 dark:text-zinc-300">
             {MCP_INSTALL_PROMPT}
           </pre>
         )}
@@ -728,7 +728,7 @@ export default function App() {
       <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
+          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
           disabled={disabled}
           onClick={handleInstall}
         >
@@ -744,7 +744,7 @@ export default function App() {
         </button>
         <a
           href={GOOGLE_CONNECTIONS_URL}
-          className="text-slate-500 underline hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="text-slate-500 underline hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           onClick={(event) => {
             event.preventDefault();
             openUrl(GOOGLE_CONNECTIONS_URL);
@@ -754,21 +754,21 @@ export default function App() {
         </a>
       </section>
 
-      <details className="rounded-lg border border-slate-200 p-4 text-sm dark:border-slate-700">
-        <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-200">Avanzado</summary>
+      <details className="rounded-lg border border-slate-200 p-4 text-sm dark:border-zinc-700">
+        <summary className="cursor-pointer font-medium text-slate-700 dark:text-zinc-200">Avanzado</summary>
         <div className="mt-4 space-y-4">
           <div>
-            <p className="text-slate-500 dark:text-slate-400">Carpeta de configuración</p>
+            <p className="text-slate-500 dark:text-zinc-400">Carpeta de configuración</p>
             <p className="mt-1 break-all font-mono text-xs">
               {status?.config_dir ?? "Desconocida"}
               {status?.config_dir_is_default && (
-                <span className="font-sans text-slate-400 dark:text-slate-500"> (predeterminada)</span>
+                <span className="font-sans text-slate-400 dark:text-zinc-500"> (predeterminada)</span>
               )}
             </p>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
-                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
+                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
                 disabled={disabled}
                 onClick={handleChooseFolder}
               >
@@ -776,7 +776,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
+                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
                 disabled={disabled || status === null || status.config_dir_is_default}
                 onClick={() => changeConfigDir(null)}
               >
@@ -785,9 +785,9 @@ export default function App() {
             </div>
           </div>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400">Almacenamiento de claves</span>
+            <span className="text-slate-500 dark:text-zinc-400">Almacenamiento de claves</span>
             <select
-              className="mt-1 block rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-slate-600 dark:bg-slate-900"
+              className="mt-1 block rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-zinc-600 dark:bg-zinc-900"
               disabled={disabled}
               value={status?.key_storage ?? "auto"}
               onChange={(event) => handleKeyStorage(event.target.value as KeyStorage)}
@@ -797,29 +797,29 @@ export default function App() {
               <option value="file">Archivo</option>
             </select>
             {keyStorageHint !== "" && (
-              <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">{keyStorageHint}</span>
+              <span className="mt-1 block text-xs text-slate-400 dark:text-zinc-500">{keyStorageHint}</span>
             )}
           </label>
         </div>
       </details>
       </main>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-700/80 dark:bg-slate-950/95 dark:shadow-[0_-8px_24px_rgba(0,0,0,0.25)]">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-950/95 dark:shadow-[0_-8px_24px_rgba(0,0,0,0.25)]">
         <div className="mx-auto flex max-w-xl items-center gap-3">
           <div className="relative shrink-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 dark:bg-zinc-700 dark:text-zinc-100">
               {accountInitials}
             </div>
-            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-950 ${statusDotClass}`} />
+            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-zinc-950 ${statusDotClass}`} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{accountText}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
               {hasChanges ? "Hay cambios sin guardar" : status?.account ? "Todo guardado" : "Selecciona servicios para conectar"}
             </p>
           </div>
           <button
             type="button"
-            className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
             disabled={saveDisabled}
             onClick={handleSave}
           >
