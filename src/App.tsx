@@ -803,8 +803,8 @@ export default function App() {
         </div>
       </details>
       </main>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-950/95 dark:shadow-[0_-8px_24px_rgba(0,0,0,0.25)]">
-        <div className="mx-auto flex max-w-xl items-center gap-3">
+      <div className="fixed bottom-3 left-1/2 z-30 w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.14)] backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-950/95 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <div className="flex items-center gap-3">
           <div className="relative shrink-0">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 dark:bg-zinc-700 dark:text-zinc-100">
               {accountInitials}

@@ -12,7 +12,7 @@ body {
 
 @media (prefers-color-scheme: dark) {
   body {
-    background: #020617;
-    color: #f8fafc;
+    background: #09090b;
+    color: #fafafa;
   }
 }
