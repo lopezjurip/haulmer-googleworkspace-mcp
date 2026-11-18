@@ -588,14 +588,12 @@ export default function App() {
             <li key={info.service} className="flex items-center gap-3 px-3 py-2.5">
               <ServiceIcon src={SERVICE_ICONS[info.service]} label={info.name} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1">
-                  <p className="truncate font-medium">{info.name}</p>
-                  {info.availability_reason !== null && (
-                    <AvailabilityWarning message={info.availability_reason} />
-                  )}
-                </div>
+                <p className="truncate text-sm font-medium">{info.name}</p>
               </div>
-              <div className="shrink-0">
+              <div className="flex shrink-0 items-center gap-1">
+                {info.availability_reason !== null && (
+                  <AvailabilityWarning message={info.availability_reason} />
+                )}
                 <AccessControl
                   ariaLabel={`${info.name} nivel de acceso`}
                   value={serviceAccess(selection, info.service)}
@@ -616,14 +614,12 @@ export default function App() {
             <li key={info.connector} className="flex items-center gap-3 px-3 py-2.5">
               <ServiceIcon label={info.name} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1">
-                  <p className="truncate font-medium">{info.name}</p>
-                  {info.availability_reason !== null && (
-                    <AvailabilityWarning message={info.availability_reason} />
-                  )}
-                </div>
+                <p className="truncate text-sm font-medium">{info.name}</p>
               </div>
-              <div className="shrink-0">
+              <div className="flex shrink-0 items-center gap-1">
+                {info.availability_reason !== null && (
+                  <AvailabilityWarning message={info.availability_reason} />
+                )}
                 <AccessControl
                   ariaLabel={`${info.name} nivel de acceso`}
                   value={businessAccess(businessSelection, info.connector)}
