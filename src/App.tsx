@@ -187,16 +187,16 @@ function AccessControl({
       disabled={disabled}
       className="isolate inline-flex rounded-md border border-slate-200 bg-slate-100 p-1 dark:border-zinc-700 dark:bg-zinc-800"
     >
-      <SegmentedControlIndicator className="rounded bg-white shadow-sm dark:bg-zinc-600" />
+      <SegmentedControlIndicator className="rounded bg-white shadow-sm dark:bg-zinc-200" />
       <SegmentedControlItem
         value="off"
-        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-zinc-300 dark:data-[checked]:text-white sm:px-2"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-semibold data-[checked]:text-zinc-950 dark:text-zinc-300 dark:data-[checked]:text-zinc-950 sm:px-2"
       >
         Apagado
       </SegmentedControlItem>
       <SegmentedControlItem
         value="read"
-        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-zinc-300 dark:data-[checked]:text-white sm:px-2"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-semibold data-[checked]:text-zinc-950 dark:text-zinc-300 dark:data-[checked]:text-zinc-950 sm:px-2"
       >
         <span className="sm:hidden">Lectura</span>
         <span className="hidden sm:inline">Solo Lectura</span>
@@ -204,7 +204,7 @@ function AccessControl({
       <SegmentedControlItem
         value="write"
         disabled={writeDisabled}
-        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-zinc-300 dark:data-[checked]:text-white sm:px-2"
+        className="relative rounded px-1.5 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-semibold data-[checked]:text-zinc-950 dark:text-zinc-300 dark:data-[checked]:text-zinc-950 sm:px-2"
       >
         <span className="sm:hidden">Completo</span>
         <span className="hidden sm:inline">Acceso completo</span>
