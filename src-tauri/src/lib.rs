@@ -231,8 +231,12 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            TrayIconBuilder::new()
+            let open = MenuItemBuilder::with_id("open", "Open settings").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit haulmer-connect").build(app)?;
+            let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
+            TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
+                .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" | "connect" => show_main_window(app),
