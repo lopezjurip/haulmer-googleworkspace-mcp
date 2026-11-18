@@ -8,19 +8,24 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import {
   ERROR_TEXT,
   HAS_LEVEL,
-  TOGGLE_LEVEL,
   type InstalledSkills,
+  type BusinessConnector,
   type BusinessConnectorInfo,
   type BusinessSelection,
   HAS_BUSINESS_LEVEL,
-  TOGGLE_BUSINESS_LEVEL,
   type KeyStorage,
   type RevokeOutcome,
   type SaveOutcome,
   type Selection,
+  type Service,
   type ServiceInfo,
   type Status,
 } from "./core";
+import {
+  SegmentedControl,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+} from "@ui-sdk/react/segmented-control";
 
 /** Google's "Third-party apps & services" page, where the person can also revoke access. */
 const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
@@ -37,6 +42,92 @@ type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | "update" | null
 
 /** Feedback shown after an action. */
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
+type AccessChoice = "off" | "read" | "write";
+
+function serviceAccess(selection: Selection, service: Service): AccessChoice {
+  if (HAS_LEVEL(selection, service, "write")) {
+    return "write";
+  }
+  return HAS_LEVEL(selection, service, "read") ? "read" : "off";
+}
+
+function businessAccess(selection: BusinessSelection, connector: BusinessConnector): AccessChoice {
+  if (HAS_BUSINESS_LEVEL(selection, connector, "write")) {
+    return "write";
+  }
+  return HAS_BUSINESS_LEVEL(selection, connector, "read") ? "read" : "off";
+}
+
+function updateServiceAccess(
+  selection: Selection,
+  service: Service,
+  access: AccessChoice,
+): Selection {
+  const withoutService = selection.filter((item) => item.service !== service);
+  return access === "off"
+    ? withoutService
+    : [...withoutService, { service, level: access === "write" ? "write" : "read" }];
+}
+
+function updateBusinessAccess(
+  selection: BusinessSelection,
+  connector: BusinessConnector,
+  access: AccessChoice,
+): BusinessSelection {
+  const withoutConnector = selection.filter((item) => item.connector !== connector);
+  return access === "off"
+    ? withoutConnector
+    : [...withoutConnector, { connector, level: access === "write" ? "write" : "read" }];
+}
+
+function AccessControl({
+  value,
+  onChange,
+  disabled,
+  writeDisabled = false,
+  ariaLabel,
+}: {
+  value: AccessChoice;
+  onChange: (value: AccessChoice) => void;
+  disabled: boolean;
+  writeDisabled?: boolean;
+  ariaLabel: string;
+}) {
+  return (
+    <SegmentedControl
+      aria-label={ariaLabel}
+      value={value}
+      onValueChange={(next) => {
+        if (next === "off" || next === "read" || next === "write") {
+          onChange(next);
+        }
+      }}
+      disabled={disabled}
+      className="isolate inline-flex rounded-md bg-slate-100 p-1"
+    >
+      <SegmentedControlIndicator className="rounded bg-white shadow-sm" />
+      <SegmentedControlItem
+        value="off"
+        className="relative rounded px-2 py-1 text-xs text-slate-500 data-[checked]:text-slate-900"
+      >
+        Apagado
+      </SegmentedControlItem>
+      <SegmentedControlItem
+        value="read"
+        className="relative rounded px-2 py-1 text-xs text-slate-500 data-[checked]:text-slate-900"
+      >
+        Solo Lectura
+      </SegmentedControlItem>
+      <SegmentedControlItem
+        value="write"
+        disabled={writeDisabled}
+        className="relative rounded px-2 py-1 text-xs text-slate-500 data-[checked]:text-slate-900"
+      >
+        Acceso completo
+      </SegmentedControlItem>
+    </SegmentedControl>
+  );
+}
 
 /**
  * The one screen of haulmer-connect: account, services, Save, Revoke all,
@@ -446,30 +537,20 @@ export default function App() {
               {info.availability_reason !== null && (
                 <p className="mt-1 text-xs text-amber-700">{info.availability_reason}</p>
               )}
-              <label className="mt-2 flex items-start gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
+              <div className="mt-3">
+                <AccessControl
+                  ariaLabel={`${info.name} access`}
+                  value={serviceAccess(selection, info.service)}
+                  onChange={(access) =>
+                    setSelection(updateServiceAccess(selection, info.service, access))
+                  }
                   disabled={disabled || !info.enabled}
-                  checked={HAS_LEVEL(selection, info.service, "read")}
-                  onChange={(event) =>
-                    setSelection(TOGGLE_LEVEL(selection, info.service, "read", event.target.checked))
-                  }
+                  writeDisabled={!info.write_enabled}
                 />
-                {info.read}
-              </label>
-              <label className="mt-1 flex items-start gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  disabled={disabled || !info.enabled || !info.write_enabled}
-                  checked={HAS_LEVEL(selection, info.service, "write")}
-                  onChange={(event) =>
-                    setSelection(TOGGLE_LEVEL(selection, info.service, "write", event.target.checked))
-                  }
-                />
-                {info.write}
-              </label>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Read: {info.read} · Write: {info.write}
+              </p>
             </li>
           ))}
         </ul>
@@ -482,44 +563,21 @@ export default function App() {
               {info.availability_reason !== null && (
                 <p className="mt-1 text-xs text-amber-700">{info.availability_reason}</p>
               )}
-              <label className="mt-2 flex items-start gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  disabled={disabled || !info.enabled}
-                  checked={HAS_BUSINESS_LEVEL(businessSelection, info.connector, "read")}
-                  onChange={(event) =>
+              <div className="mt-3">
+                <AccessControl
+                  ariaLabel={`${info.name} access`}
+                  value={businessAccess(businessSelection, info.connector)}
+                  onChange={(access) =>
                     setBusinessSelection(
-                      TOGGLE_BUSINESS_LEVEL(
-                        businessSelection,
-                        info.connector,
-                        "read",
-                        event.target.checked,
-                      ),
+                      updateBusinessAccess(businessSelection, info.connector, access),
                     )
                   }
-                />
-                {info.read}
-              </label>
-              <label className="mt-1 flex items-start gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
                   disabled={disabled || !info.enabled}
-                  checked={HAS_BUSINESS_LEVEL(businessSelection, info.connector, "write")}
-                  onChange={(event) =>
-                    setBusinessSelection(
-                      TOGGLE_BUSINESS_LEVEL(
-                        businessSelection,
-                        info.connector,
-                        "write",
-                        event.target.checked,
-                      ),
-                    )
-                  }
                 />
-                {info.write}
-              </label>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Read: {info.read} · Write: {info.write}
+              </p>
             </li>
           ))}
         </ul>
