@@ -140,7 +140,11 @@ function updateServiceAccess(
   const withoutService = selection.filter((item) => item.service !== service);
   return access === "off"
     ? withoutService
-    : [...withoutService, { service, level: access === "write" ? "write" : "read" }];
+    : [
+        ...withoutService,
+        { service, level: "read" },
+        ...(access === "write" ? [{ service, level: "write" as const }] : []),
+      ];
 }
 
 function updateBusinessAccess(
@@ -151,7 +155,11 @@ function updateBusinessAccess(
   const withoutConnector = selection.filter((item) => item.connector !== connector);
   return access === "off"
     ? withoutConnector
-    : [...withoutConnector, { connector, level: access === "write" ? "write" : "read" }];
+    : [
+        ...withoutConnector,
+        { connector, level: "read" },
+        ...(access === "write" ? [{ connector, level: "write" as const }] : []),
+      ];
 }
 
 function AccessControl({
@@ -561,8 +569,22 @@ export default function App() {
       .map((part) => part.charAt(0).toUpperCase())
       .join("") || "?";
   const disabled = busy !== null;
-  const selectionKey = (items: Array<object>) =>
-    JSON.stringify([...items].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+  const selectionKey = (
+    items: Array<{ level: "read" | "write"; service?: string; connector?: string }>,
+  ) => {
+    const effectivePermissions = new Set<string>();
+    for (const item of items) {
+      const resource = item.service ?? item.connector;
+      if (resource === undefined) {
+        continue;
+      }
+      effectivePermissions.add(`${resource}:read`);
+      if (item.level === "write") {
+        effectivePermissions.add(`${resource}:write`);
+      }
+    }
+    return [...effectivePermissions].sort().join("|");
+  };
   const hasChanges =
     status !== null &&
     (status.account === null
