@@ -845,7 +845,7 @@ export default function App() {
             disabled={saveDisabled}
             onClick={handleSave}
           >
-            {busy === "save" ? "Guardando…" : "Guardar"}
+            {busy === "save" ? (status?.account ? "Guardando…" : "Conectando…") : status?.account ? "Guardar" : "Conectar"}
           </button>
         </div>
       </div>
