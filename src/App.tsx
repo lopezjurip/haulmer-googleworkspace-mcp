@@ -27,15 +27,24 @@ import {
   SegmentedControlItem,
 } from "@ui-sdk/react/segmented-control";
 import adminIcon from "./assets/service-icons/admin.png";
+import businessIntelligenceIcon from "./assets/service-icons/business-intelligence.png";
 import calendarIcon from "./assets/service-icons/calendar.png";
 import chatIcon from "./assets/service-icons/chat.png";
+import dataAnalyticsIcon from "./assets/service-icons/data-analytics.png";
 import docsIcon from "./assets/service-icons/docs.png";
 import driveIcon from "./assets/service-icons/drive.png";
 import formsIcon from "./assets/service-icons/forms.png";
 import gmailIcon from "./assets/service-icons/gmail.png";
+import mapsIcon from "./assets/service-icons/maps.png";
+import mediaIcon from "./assets/service-icons/media.png";
 import meetIcon from "./assets/service-icons/meet.png";
+import marketplaceIcon from "./assets/service-icons/marketplace.png";
+import peopleIcon from "./assets/service-icons/people.png";
+import securityIdentityIcon from "./assets/service-icons/security-identity.png";
 import sheetsIcon from "./assets/service-icons/sheets.png";
 import slidesIcon from "./assets/service-icons/slides.png";
+import tasksIcon from "./assets/service-icons/tasks.png";
+import webMobileIcon from "./assets/service-icons/web-mobile.png";
 
 /** Google's "Third-party apps & services" page, where the person can also revoke access. */
 const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
@@ -64,9 +73,21 @@ const SERVICE_ICONS: Partial<Record<Service, string>> = {
   sheets: sheetsIcon,
   slides: slidesIcon,
   forms: formsIcon,
+  tasks: tasksIcon,
+  people: peopleIcon,
   "admin-reports": adminIcon,
   "admin-directory": adminIcon,
   "admin-groups": adminIcon,
+  "cloud-identity": securityIdentityIcon,
+};
+
+const BUSINESS_ICONS: Record<BusinessConnector, string> = {
+  youtube: mediaIcon,
+  "google-ads": businessIntelligenceIcon,
+  analytics: dataAnalyticsIcon,
+  "search-console": webMobileIcon,
+  "business-profile": mapsIcon,
+  "merchant-center": marketplaceIcon,
 };
 
 function ServiceIcon({ src, label }: { src?: string; label: string }) {
@@ -612,7 +633,7 @@ export default function App() {
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {businessCatalogue.map((info) => (
             <li key={info.connector} className="flex items-center gap-3 px-3 py-2.5">
-              <ServiceIcon label={info.name} />
+              <ServiceIcon src={BUSINESS_ICONS[info.connector]} label={info.name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{info.name}</p>
               </div>
