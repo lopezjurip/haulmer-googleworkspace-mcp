@@ -4,8 +4,9 @@
 use std::path::PathBuf;
 
 use haulmer_connect_core::{
-    BusinessConnectorInfo, BusinessSelection, Core, CoreError, InstalledSkills, KeyStorage, Paths,
-    RevokeOutcome, SaveOutcome, Selection, ServiceInfo, Status, mcp, scopes,
+    BusinessConnector, BusinessConnectorInfo, BusinessSelection, Core, CoreError, InstalledSkills,
+    KeyStorage, Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service, ServiceInfo, Status,
+    mcp, scopes,
 };
 use serde_json::Value;
 use tauri::{
@@ -50,18 +51,27 @@ fn save(
     business_selection: Option<BusinessSelection>,
     confirm_replace: bool,
 ) -> Result<SaveOutcome, CoreError> {
+    set_tray_menu(&app, TrayState::Connecting);
     let on_auth_url = |url: &str| {
         let _ = app.opener().open_url(url, None::<&str>);
         let _ = app.emit(AUTH_URL_EVENT, url);
     };
-    core.save_with_business(
+    let result = core.save_with_business(
         &selection,
         business_selection
             .as_ref()
             .unwrap_or(&BusinessSelection::new()),
         confirm_replace,
         &on_auth_url,
-    )
+    );
+    match &result {
+        Ok(SaveOutcome::Connected(status)) => {
+            set_tray_menu(&app, TrayState::Status(status.clone()))
+        }
+        Ok(SaveOutcome::NeedsReplaceConfirmation) => refresh_tray_menu(&app, &core),
+        Err(_) => set_tray_menu(&app, TrayState::Error),
+    }
+    result
 }
 
 /// `Core::cancel_login`.
@@ -72,8 +82,10 @@ fn save(
 /// await invoke("cancel_login");
 /// ```
 #[tauri::command]
-fn cancel_login(core: State<'_, Core>) -> Result<(), CoreError> {
-    core.cancel_login()
+fn cancel_login(app: AppHandle, core: State<'_, Core>) -> Result<(), CoreError> {
+    let result = core.cancel_login();
+    refresh_tray_menu(&app, &core);
+    result
 }
 
 /// `Core::revoke_all`; `confirmForeign` allows revoking credentials created by another app.
@@ -84,8 +96,14 @@ fn cancel_login(core: State<'_, Core>) -> Result<(), CoreError> {
 /// const outcome = await invoke("revoke_all", { confirmForeign: false });
 /// ```
 #[tauri::command(async)]
-fn revoke_all(core: State<'_, Core>, confirm_foreign: bool) -> Result<RevokeOutcome, CoreError> {
-    core.revoke_all(confirm_foreign)
+fn revoke_all(
+    app: AppHandle,
+    core: State<'_, Core>,
+    confirm_foreign: bool,
+) -> Result<RevokeOutcome, CoreError> {
+    let result = core.revoke_all(confirm_foreign);
+    refresh_tray_menu(&app, &core);
+    result
 }
 
 /// `Core::install_skills`.
@@ -213,15 +231,11 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            let open = MenuItemBuilder::with_id("open", "Open haulmer-connect").build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Quit haulmer-connect").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
             TrayIconBuilder::new()
                 .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
-                .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "open" => show_main_window(app),
+                    "open" | "connect" => show_main_window(app),
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -241,6 +255,7 @@ pub fn run() {
                 app_data: app.path().app_data_dir()?,
             };
             app.manage(Core::system(paths));
+            refresh_tray_menu(app.handle(), &app.state::<Core>());
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             Ok(())
@@ -268,6 +283,185 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[derive(Clone)]
+enum TrayState {
+    Connecting,
+    Status(Status),
+    Error,
+}
+
+fn refresh_tray_menu(app: &AppHandle, core: &Core) {
+    let state = match core.status() {
+        Ok(status) => TrayState::Status(status),
+        Err(error) => {
+            eprintln!("Could not refresh tray status: {error}");
+            TrayState::Error
+        }
+    };
+    set_tray_menu(app, state);
+}
+
+fn set_tray_menu(app: &AppHandle, state: TrayState) {
+    let Some(tray) = app.tray_by_id("main") else {
+        return;
+    };
+
+    let (status_text, account_text, permissions) = match state {
+        TrayState::Connecting => (
+            "🟡 Connecting…".to_string(),
+            "Open haulmer-connect".to_string(),
+            Vec::new(),
+        ),
+        TrayState::Error => (
+            "🔴 Status unavailable".to_string(),
+            "Open haulmer-connect".to_string(),
+            Vec::new(),
+        ),
+        TrayState::Status(status) => {
+            let (indicator, account_text) = match status.account.as_deref() {
+                Some(account) if status.token_valid => ("🟢 Connected", account.to_string()),
+                Some(account) => ("🟡 Reauthentication required", account.to_string()),
+                None => ("⚪ Not connected", "Connect Google account".to_string()),
+            };
+            (
+                indicator.to_string(),
+                account_text,
+                active_permission_labels(&status),
+            )
+        }
+    };
+
+    let status_item = match MenuItemBuilder::with_id("status", status_text)
+        .enabled(false)
+        .build(app)
+    {
+        Ok(item) => item,
+        Err(error) => {
+            eprintln!("Could not build tray status item: {error}");
+            return;
+        }
+    };
+    let account_item = match MenuItemBuilder::with_id(
+        if account_text == "Connect Google account" {
+            "connect"
+        } else {
+            "open"
+        },
+        account_text,
+    )
+    .build(app)
+    {
+        Ok(item) => item,
+        Err(error) => {
+            eprintln!("Could not build tray account item: {error}");
+            return;
+        }
+    };
+    let open = match MenuItemBuilder::with_id("open", "Open settings").build(app) {
+        Ok(item) => item,
+        Err(error) => {
+            eprintln!("Could not build tray open item: {error}");
+            return;
+        }
+    };
+    let quit = match MenuItemBuilder::with_id("quit", "Quit haulmer-connect").build(app) {
+        Ok(item) => item,
+        Err(error) => {
+            eprintln!("Could not build tray quit item: {error}");
+            return;
+        }
+    };
+    let permission_items: Vec<_> = permissions
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, label)| {
+            MenuItemBuilder::with_id(format!("permission-{index}"), label)
+                .enabled(false)
+                .build(app)
+                .map_err(|error| {
+                    eprintln!("Could not build tray permission item: {error}");
+                    error
+                })
+                .ok()
+        })
+        .collect();
+
+    let mut builder = MenuBuilder::new(app)
+        .item(&status_item)
+        .item(&account_item)
+        .separator();
+    for item in &permission_items {
+        builder = builder.item(item);
+    }
+    let menu = match builder.separator().item(&open).item(&quit).build() {
+        Ok(menu) => menu,
+        Err(error) => {
+            eprintln!("Could not build tray menu: {error}");
+            return;
+        }
+    };
+    if let Err(error) = tray.set_menu(Some(menu)) {
+        eprintln!("Could not update tray menu: {error}");
+    }
+}
+
+fn active_permission_labels(status: &Status) -> Vec<String> {
+    let mut permissions = Vec::new();
+    for service in Service::ALL {
+        if status.granted.contains(service, Level::Write) {
+            permissions.push(format!("{} — Acceso completo", service_label(service)));
+        } else if status.granted.contains(service, Level::Read) {
+            permissions.push(format!("{} — Solo lectura", service_label(service)));
+        }
+    }
+    for connector in [
+        BusinessConnector::Youtube,
+        BusinessConnector::GoogleAds,
+        BusinessConnector::Analytics,
+        BusinessConnector::SearchConsole,
+        BusinessConnector::BusinessProfile,
+        BusinessConnector::MerchantCenter,
+    ] {
+        if status.business_granted.contains(connector, Level::Write) {
+            permissions.push(format!("{} — Acceso completo", business_label(connector)));
+        } else if status.business_granted.contains(connector, Level::Read) {
+            permissions.push(format!("{} — Solo lectura", business_label(connector)));
+        }
+    }
+    permissions
+}
+
+fn service_label(service: Service) -> &'static str {
+    match service {
+        Service::Gmail => "Gmail",
+        Service::Calendar => "Calendar",
+        Service::Chat => "Chat",
+        Service::Meet => "Meet",
+        Service::Drive => "Drive",
+        Service::Docs => "Docs",
+        Service::Sheets => "Sheets",
+        Service::Slides => "Slides",
+        Service::Forms => "Forms",
+        Service::Tasks => "Tasks",
+        Service::People => "People",
+        Service::AdminReports => "Admin Reports",
+        Service::AdminDirectory => "Admin Directory",
+        Service::AdminGroups => "Admin Groups",
+        Service::CloudIdentity => "Cloud Identity",
+    }
+}
+
+fn business_label(connector: BusinessConnector) -> &'static str {
+    match connector {
+        BusinessConnector::Youtube => "YouTube",
+        BusinessConnector::GoogleAds => "Google Ads",
+        BusinessConnector::Analytics => "Analytics",
+        BusinessConnector::SearchConsole => "Search Console",
+        BusinessConnector::BusinessProfile => "Business Profile",
+        BusinessConnector::MerchantCenter => "Merchant Center",
+    }
 }
 
 /// Shows and focuses the main window from the tray menu or icon.
