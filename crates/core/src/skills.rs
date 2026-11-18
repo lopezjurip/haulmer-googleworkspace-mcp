@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::io::Read;
+use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 use crate::gws_binary::sha256_hex;
@@ -144,6 +144,39 @@ impl Core {
             });
         }
         Ok(installed)
+    }
+
+    /// Builds a ZIP containing `gws-shared` and the skills of the currently granted services.
+    pub fn export_skills_zip(&self) -> Result<Vec<u8>, CoreError> {
+        let granted = self.status()?.granted;
+        let mut skills = self.download_skills()?;
+        let shared_skill_md = skills
+            .get_mut(SHARED_SKILL)
+            .and_then(|shared| shared.get_mut(Path::new("SKILL.md")));
+        if let (Some(section), Some(content)) = (self.environment_section()?, shared_skill_md) {
+            content.extend_from_slice(section.as_bytes());
+        }
+
+        let wanted = skills
+            .iter()
+            .filter(|(name, _)| *name == SHARED_SKILL || granted_skill(&granted, name));
+        let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        for (name, files) in wanted {
+            for (relative, content) in files {
+                let path = Path::new(name).join(relative);
+                archive
+                    .start_file(path.to_string_lossy().replace('\\', "/"), options)
+                    .map_err(|error| {
+                        CoreError::Download(format!("could not create skills ZIP: {error}"))
+                    })?;
+                archive.write_all(content)?;
+            }
+        }
+        archive
+            .finish()
+            .map(|cursor| cursor.into_inner())
+            .map_err(|error| CoreError::Download(format!("could not finish skills ZIP: {error}")))
     }
 
     /// Reads [`MANIFEST_FILE`]; empty when it does not exist.

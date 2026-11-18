@@ -16,6 +16,14 @@
         "width": 640,
         "height": 720,
         "visible": false
+      },
+      {
+        "label": "skills",
+        "title": "Skills de haulmer-connect",
+        "url": "index.html?window=skills",
+        "width": 560,
+        "height": 520,
+        "visible": false
       }
     ],
     "security": {

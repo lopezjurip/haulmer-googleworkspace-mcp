@@ -118,6 +118,13 @@ fn install_skills(core: State<'_, Core>) -> Result<Vec<InstalledSkills>, CoreErr
     core.install_skills()
 }
 
+/// Exports the granted skills to a user-selected path.
+#[tauri::command(async)]
+fn export_skills_zip(core: State<'_, Core>, path: PathBuf) -> Result<(), CoreError> {
+    std::fs::write(path, core.export_skills_zip()?)?;
+    Ok(())
+}
+
 /// `Core::set_config_dir`; `null` resets to the gws default folder.
 ///
 /// # Example
@@ -232,12 +239,15 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let open = MenuItemBuilder::with_id("open", "Abrir configuración").build(app)?;
+            let skills = MenuItemBuilder::with_id("skills", "Abrir skills").build(app)?;
             let copy_prompt =
                 MenuItemBuilder::with_id("copy-prompt", "Copiar prompt de instalación")
                     .build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app)?;
             let menu = MenuBuilder::new(app)
-                .items(&[&open, &copy_prompt, &quit])
+                .items(&[&open, &skills, &copy_prompt])
+                .separator()
+                .item(&quit)
                 .build()?;
             let tray = TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?)
@@ -245,6 +255,7 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" | "connect" => show_main_window(app),
+                    "skills" => show_skills_window(app),
                     "copy-prompt" => {
                         if let Err(error) = app.emit("copy-install-prompt", ()) {
                             eprintln!("Could not request prompt copy: {error}");
@@ -277,6 +288,7 @@ pub fn run() {
             cancel_login,
             revoke_all,
             install_skills,
+            export_skills_zip,
             set_config_dir,
             set_key_storage,
             catalogue,
@@ -371,6 +383,13 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
             return;
         }
     };
+    let skills = match MenuItemBuilder::with_id("skills", "Abrir skills").build(app) {
+        Ok(item) => item,
+        Err(error) => {
+            eprintln!("Could not build tray skills item: {error}");
+            return;
+        }
+    };
     let copy_prompt =
         match MenuItemBuilder::with_id("copy-prompt", "Copiar prompt de instalación").build(app) {
             Ok(item) => item,
@@ -411,7 +430,9 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
     let menu = match builder
         .separator()
         .item(&open)
+        .item(&skills)
         .item(&copy_prompt)
+        .separator()
         .item(&quit)
         .build()
     {
@@ -486,6 +507,15 @@ fn business_label(connector: BusinessConnector) -> &'static str {
 /// Shows and focuses the main window from the tray menu or icon.
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Shows and focuses the skills window from the tray menu.
+fn show_skills_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("skills") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();

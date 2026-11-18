@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "skills"
   ],
   "permissions": [
     "core:default",
@@ -16,6 +17,7 @@
     },
     "opener:allow-reveal-item-in-dir",
     "dialog:allow-open",
+    "dialog:allow-save",
     "dialog:allow-message",
     "updater:default",
     "process:allow-restart"

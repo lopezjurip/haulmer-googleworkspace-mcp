@@ -54,5 +54,14 @@ jobs:
       - name: pnpm build
         run: pnpm build
 
+      - name: Lint TypeScript
+        run: pnpm lint:ts
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint Rust
+        run: pnpm lint:rust
+
       - name: cargo test
         run: cargo test --workspace --locked

@@ -53,7 +53,9 @@ export type SaveOutcome =
   | { kind: "needs_replace_confirmation" };
 
 /** Result of the `revoke_all` command. */
-export type RevokeOutcome = { kind: "revoked" } | { kind: "needs_foreign_confirmation" };
+export type RevokeOutcome =
+  | { kind: "revoked" }
+  | { kind: "needs_foreign_confirmation" };
 
 /** Plain-language labels for one service row. */
 export type ServiceInfo = {
@@ -90,7 +92,11 @@ export type BusinessAccess = { connector: BusinessConnector; level: Level };
 export type BusinessSelection = BusinessAccess[];
 
 /** Skills written into one agent skills folder by `install_skills`; `skipped` were left alone (not installed by this app). */
-export type InstalledSkills = { target: string; skills: string[]; skipped: string[] };
+export type InstalledSkills = {
+  target: string;
+  skills: string[];
+  skipped: string[];
+};
 
 /**
  * Whether a selection holds a service level.
@@ -98,8 +104,14 @@ export type InstalledSkills = { target: string; skills: string[]; skipped: strin
  * @example
  * HAS_LEVEL([{ service: "gmail", level: "read" }], "gmail", "read"); // true
  */
-export function HAS_LEVEL(selection: Selection, service: Service, level: Level): boolean {
-  return selection.some((item) => item.service === service && item.level === level);
+export function HAS_LEVEL(
+  selection: Selection,
+  service: Service,
+  level: Level,
+): boolean {
+  return selection.some(
+    (item) => item.service === service && item.level === level,
+  );
 }
 
 export function HAS_BUSINESS_LEVEL(
@@ -107,7 +119,9 @@ export function HAS_BUSINESS_LEVEL(
   connector: BusinessConnector,
   level: Level,
 ): boolean {
-  return selection.some((item) => item.connector === connector && item.level === level);
+  return selection.some(
+    (item) => item.connector === connector && item.level === level,
+  );
 }
 
 export function TOGGLE_BUSINESS_LEVEL(
@@ -116,7 +130,8 @@ export function TOGGLE_BUSINESS_LEVEL(
   level: Level,
   checked: boolean,
 ): BusinessSelection {
-  const levels: Level[] = checked && level === "write" ? ["read", "write"] : [level];
+  const levels: Level[] =
+    checked && level === "write" ? ["read", "write"] : [level];
   const others = selection.filter(
     (item) => item.connector !== connector || !levels.includes(item.level),
   );
