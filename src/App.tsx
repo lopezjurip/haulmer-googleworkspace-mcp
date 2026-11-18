@@ -39,6 +39,14 @@ import slidesIcon from "./assets/service-icons/slides.png";
 import tasksIcon from "./assets/service-icons/tasks.png";
 import webMobileIcon from "./assets/service-icons/web-mobile.png";
 
+const MCP_INSTALL_PROMPT = `Configura haulmer-connect como servidor MCP local, pero no modifiques ningún archivo sin pedirme confirmación.
+
+La aplicación ya está instalada en este equipo. Usa su ejecutable y agrega:
+- Claude Desktop: mcpServers.haulmer-connect con args ["mcp"] en claude_desktop_config.json.
+- ChatGPT/Codex: [mcp_servers.haulmer-connect] con args = ["mcp"] en ~/.codex/config.toml.
+
+Conserva las demás configuraciones, explícame qué cambiarías y dime qué cliente debo reiniciar.`;
+
 /** The one action running right now; controls stay disabled while one runs. */
 type Busy = "save" | "revoke" | "update" | null;
 
@@ -218,10 +226,19 @@ export default function App() {
 
   useEffect(() => {
     const unlisten = listen<string>("auth-url", (event) => setAuthUrl(event.payload));
+    const unlistenCopyPrompt = listen("copy-install-prompt", async () => {
+      try {
+        await navigator.clipboard.writeText(MCP_INSTALL_PROMPT);
+        setNotice({ kind: "success", text: "Prompt copiado al portapapeles." });
+      } catch (error) {
+        setNotice({ kind: "error", text: ERROR_TEXT(error) });
+      }
+    });
     loadAll();
     checkForUpdate();
     return () => {
       unlisten.then((stop) => stop());
+      unlistenCopyPrompt.then((stop) => stop());
     };
   }, []);
 

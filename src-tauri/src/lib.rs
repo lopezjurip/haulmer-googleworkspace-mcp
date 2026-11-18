@@ -232,14 +232,24 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let open = MenuItemBuilder::with_id("open", "Abrir configuración").build(app)?;
+            let copy_prompt =
+                MenuItemBuilder::with_id("copy-prompt", "Copiar prompt de instalación")
+                    .build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
+            let menu = MenuBuilder::new(app)
+                .items(&[&open, &copy_prompt, &quit])
+                .build()?;
             let tray = TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?)
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" | "connect" => show_main_window(app),
+                    "copy-prompt" => {
+                        if let Err(error) = app.emit("copy-install-prompt", ()) {
+                            eprintln!("Could not request prompt copy: {error}");
+                        }
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -361,6 +371,14 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
             return;
         }
     };
+    let copy_prompt =
+        match MenuItemBuilder::with_id("copy-prompt", "Copiar prompt de instalación").build(app) {
+            Ok(item) => item,
+            Err(error) => {
+                eprintln!("Could not build tray copy prompt item: {error}");
+                return;
+            }
+        };
     let quit = match MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app) {
         Ok(item) => item,
         Err(error) => {
@@ -390,7 +408,13 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
     for item in &permission_items {
         builder = builder.item(item);
     }
-    let menu = match builder.separator().item(&open).item(&quit).build() {
+    let menu = match builder
+        .separator()
+        .item(&open)
+        .item(&copy_prompt)
+        .item(&quit)
+        .build()
+    {
         Ok(menu) => menu,
         Err(error) => {
             eprintln!("Could not build tray menu: {error}");
