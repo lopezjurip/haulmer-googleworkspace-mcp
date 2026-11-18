@@ -103,25 +103,25 @@ function AccessControl({
         }
       }}
       disabled={disabled}
-      className="isolate inline-flex rounded-md bg-slate-100 p-1"
+      className="isolate inline-flex rounded-md border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800"
     >
-      <SegmentedControlIndicator className="rounded bg-white shadow-sm" />
+      <SegmentedControlIndicator className="rounded bg-white shadow-sm dark:bg-slate-600" />
       <SegmentedControlItem
         value="off"
-        className="relative rounded px-2 py-1 text-xs text-slate-500 data-[checked]:text-slate-900"
+        className="relative rounded px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white"
       >
         Apagado
       </SegmentedControlItem>
       <SegmentedControlItem
         value="read"
-        className="relative rounded px-2 py-1 text-xs text-slate-500 data-[checked]:text-slate-900"
+        className="relative rounded px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white"
       >
         Solo Lectura
       </SegmentedControlItem>
       <SegmentedControlItem
         value="write"
         disabled={writeDisabled}
-        className="relative rounded px-2 py-1 text-xs text-slate-500 data-[checked]:text-slate-900"
+        className="relative rounded px-2 py-1 text-xs text-slate-600 transition-colors data-[checked]:font-medium data-[checked]:text-slate-950 dark:text-slate-300 dark:data-[checked]:text-white"
       >
         Acceso completo
       </SegmentedControlItem>
@@ -476,11 +476,11 @@ export default function App() {
     accountText = "Not connected";
   }
 
-  let noticeClass = "border-red-200 bg-red-50 text-red-800";
+  let noticeClass = "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200";
   if (notice?.kind === "success") {
-    noticeClass = "border-emerald-200 bg-emerald-50 text-emerald-800";
+    noticeClass = "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200";
   } else if (notice?.kind === "info") {
-    noticeClass = "border-slate-200 bg-slate-50 text-slate-700";
+    noticeClass = "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200";
   }
 
   let keyStorageHint = "";
@@ -493,13 +493,13 @@ export default function App() {
   const disabled = busy !== null;
 
   return (
-    <main className="mx-auto max-w-xl space-y-6 p-8 font-sans text-slate-900">
+    <main className="mx-auto min-h-screen max-w-xl space-y-6 bg-white p-8 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {update !== null && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-          <span className="text-slate-700">Version {update.version} is available</span>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900">
+          <span className="text-slate-700 dark:text-slate-200">Version {update.version} is available</span>
           <button
             type="button"
-            className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+            className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             disabled={disabled}
             onClick={handleInstallUpdate}
           >
@@ -510,27 +510,27 @@ export default function App() {
 
       <header>
         <h1 className="text-xl font-semibold">haulmer-connect</h1>
-        <p className="mt-1 text-sm text-slate-500">Connect your AI agents to Google Workspace.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Connect your AI agents to Google Workspace.</p>
       </header>
 
-      <section className="rounded-lg border border-slate-200 p-4">
-        <p className="text-xs uppercase tracking-wide text-slate-500">Google account</p>
+      <section className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Google account</p>
         <p className="mt-1 font-medium">{accountText}</p>
-        {statusError !== null && <p className="mt-1 text-sm text-slate-500">{statusError}</p>}
+        {statusError !== null && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{statusError}</p>}
         {status !== null && status.account !== null && !status.token_valid && (
-          <p className="mt-1 text-sm text-amber-700">The sign-in expired. Click Save to sign in again.</p>
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">The sign-in expired. Click Save to sign in again.</p>
         )}
         {status !== null && !status.gws_available && (
-          <p className="mt-1 text-sm text-slate-500">gws will be downloaded when you click Save.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">gws will be downloaded when you click Save.</p>
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">What your agents can use</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">What your agents can use</h2>
         {catalogueError !== null && (
-          <p className="text-sm text-slate-500">Services unavailable: {catalogueError}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Services unavailable: {catalogueError}</p>
         )}
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {catalogue.map((info) => (
             <li key={info.service} className="p-4">
               <p className="font-medium">{info.name}</p>
@@ -548,15 +548,12 @@ export default function App() {
                   writeDisabled={!info.write_enabled}
                 />
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Read: {info.read} · Write: {info.write}
-              </p>
             </li>
           ))}
         </ul>
 
-        <h2 className="pt-3 text-sm font-semibold text-slate-700">Google business connectors</h2>
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+        <h2 className="pt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Google business connectors</h2>
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {businessCatalogue.map((info) => (
             <li key={info.connector} className="p-4">
               <p className="font-medium">{info.name}</p>
@@ -575,18 +572,15 @@ export default function App() {
                   disabled={disabled || !info.enabled}
                 />
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Read: {info.read} · Write: {info.write}
-              </p>
             </li>
           ))}
         </ul>
 
         {busy === "save" && (
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm">
-            {authUrl === null && <span className="text-slate-600">Getting ready…</span>}
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-900">
+            {authUrl === null && <span className="text-slate-600 dark:text-slate-300">Getting ready…</span>}
             {authUrl !== null && (
-              <span className="text-slate-600">
+              <span className="text-slate-600 dark:text-slate-300">
                 Waiting for Google sign-in…{" "}
                 <button type="button" className="underline" onClick={() => openUrl(authUrl)}>
                   Open it again
@@ -595,7 +589,7 @@ export default function App() {
             )}
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1 hover:bg-white"
+              className="rounded-md border border-slate-300 px-3 py-1 hover:bg-white dark:border-slate-600 dark:hover:bg-slate-800"
               onClick={handleCancel}
             >
               Cancel
@@ -606,13 +600,13 @@ export default function App() {
           <div>
             <button
               type="button"
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
               disabled={disabled || (selection.length === 0 && !status?.account)}
               onClick={handleSave}
             >
               Save
             </button>
-            <p className="mt-2 text-xs text-slate-400">Removing a service needs a new Google sign-in.</p>
+            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Removing a service needs a new Google sign-in.</p>
           </div>
         )}
       </section>
@@ -625,14 +619,14 @@ export default function App() {
         <span className="font-medium">Use from desktop AI apps</span>
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
+          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
           disabled={disabled}
           onClick={handleCopyInstallPrompt}
         >
           Copy install prompt
         </button>
         {showInstallPrompt && (
-          <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600">
+          <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
             {MCP_INSTALL_PROMPT}
           </pre>
         )}
@@ -641,7 +635,7 @@ export default function App() {
       <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
+          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
           disabled={disabled}
           onClick={handleInstall}
         >
@@ -649,7 +643,7 @@ export default function App() {
         </button>
         <button
           type="button"
-          className="rounded-md border border-red-200 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-40"
+          className="rounded-md border border-red-200 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-40 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
           disabled={disabled}
           onClick={handleRevokeAll}
         >
@@ -657,7 +651,7 @@ export default function App() {
         </button>
         <a
           href={GOOGLE_CONNECTIONS_URL}
-          className="text-slate-500 underline hover:text-slate-700"
+          className="text-slate-500 underline hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           onClick={(event) => {
             event.preventDefault();
             openUrl(GOOGLE_CONNECTIONS_URL);
@@ -667,21 +661,21 @@ export default function App() {
         </a>
       </section>
 
-      <details className="rounded-lg border border-slate-200 p-4 text-sm">
-        <summary className="cursor-pointer font-medium text-slate-700">Advanced</summary>
+      <details className="rounded-lg border border-slate-200 p-4 text-sm dark:border-slate-700">
+        <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-200">Advanced</summary>
         <div className="mt-4 space-y-4">
           <div>
-            <p className="text-slate-500">Config folder</p>
+            <p className="text-slate-500 dark:text-slate-400">Config folder</p>
             <p className="mt-1 break-all font-mono text-xs">
               {status?.config_dir ?? "Unknown"}
               {status?.config_dir_is_default && (
-                <span className="font-sans text-slate-400"> (default)</span>
+                <span className="font-sans text-slate-400 dark:text-slate-500"> (default)</span>
               )}
             </p>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
-                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
                 disabled={disabled}
                 onClick={handleChooseFolder}
               >
@@ -689,7 +683,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
                 disabled={disabled || status === null || status.config_dir_is_default}
                 onClick={() => changeConfigDir(null)}
               >
@@ -698,9 +692,9 @@ export default function App() {
             </div>
           </div>
           <label className="block">
-            <span className="text-slate-500">Key storage</span>
+            <span className="text-slate-500 dark:text-slate-400">Key storage</span>
             <select
-              className="mt-1 block rounded-md border border-slate-300 px-2 py-1"
+              className="mt-1 block rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-slate-600 dark:bg-slate-900"
               disabled={disabled}
               value={status?.key_storage ?? "auto"}
               onChange={(event) => handleKeyStorage(event.target.value as KeyStorage)}
@@ -710,7 +704,7 @@ export default function App() {
               <option value="file">File</option>
             </select>
             {keyStorageHint !== "" && (
-              <span className="mt-1 block text-xs text-slate-400">{keyStorageHint}</span>
+              <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">{keyStorageHint}</span>
             )}
           </label>
         </div>
