@@ -1,106 +1,292 @@
 # haulmer-connect
 
-A small desktop app (Windows `.exe`, macOS `.dmg`) that lets a Haulmer employee give their
-local AI agents (Claude Code, Codex, Hermes, …) access to their own Google Workspace data:
-Gmail, Calendar, Chat, Meet and Drive. One screen with a Read and a Write checkbox per
-service, **Save**, **Revoke all** and **Install in my agents**.
+`haulmer-connect` is a Tauri desktop app for granting local AI agents access to
+Google Workspace and selected Google business APIs. It runs locally on macOS and
+Windows; tokens stay on the user's machine.
 
-The app delegates login, token storage, refresh and all API calls to the
-[Google Workspace CLI](https://github.com/googleworkspace/cli) (`gws`, pinned to v0.22.5),
-using one shared, Internal OAuth client. No Haulmer server is involved; tokens never leave
-the machine. Full design: [`docs/spec.md`](docs/spec.md).
+The app delegates OAuth, token storage, refresh and API calls to the pinned
+[Google Workspace CLI](https://github.com/googleworkspace/cli) (`gws`).
+The shared OAuth client is a Google **Desktop** client with an **Internal**
+audience, restricted to Haulmer accounts.
 
-## Layout
+## Repository layout
 
-| Path | What |
+| Path | Purpose |
 |---|---|
-| `crates/core` | `haulmer_connect_core`: all behaviour behind `Core` and two ports (`ProcessRunner`, `HttpClient`) |
-| `src-tauri` | Tauri v2 shell: one window, IPC commands that call `Core` 1:1, no local HTTP server |
-| `src` | UI: React 19 + TypeScript + Tailwind CSS v4, built with Vite |
-| `docs` | Spec, research, tickets |
+| `crates/core` | Core behaviour, OAuth scopes, status, revocation and skills |
+| `src-tauri` | Tauri v2 shell, tray, IPC commands and packaging |
+| `src` | React 19 + TypeScript + Tailwind CSS UI |
+| `docs` | Product specification, research and implementation tickets |
+| `.github/workflows` | CI and signed updater release workflows |
 
-## Requirements
+## Prerequisites
 
-- Rust (stable) and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/)
-- Node.js and pnpm
+- Node.js 24
+- pnpm 12
+- Rust stable and Cargo
+- Tauri v2 system prerequisites:
+  <https://v2.tauri.app/start/prerequisites/>
+- Google Cloud CLI (`gcloud`) for project administration
 
-## Run
+On macOS, install the toolchains with Homebrew if needed:
+
+```sh
+brew install node pnpm rustup-init google-cloud-sdk
+rustup-init
+```
+
+On Windows, install Node.js, pnpm, Rust through `rustup` and the Google Cloud
+CLI using their official installers. Tauri also requires the Visual Studio C++
+build tools and WebView2.
+
+## Development
+
+Install dependencies:
 
 ```sh
 pnpm install
+```
+
+Run the frontend dev server only:
+
+```sh
+pnpm dev
+```
+
+Run the complete desktop application with hot reload:
+
+```sh
 pnpm tauri dev
 ```
 
-## MCP
+Run the checks used by CI:
 
-The app doubles as an MCP server with one tool, `gws`. The **Use from desktop AI apps**
-buttons (**Add to Claude Desktop**, **Add to ChatGPT**) write the config for you. To add it by
-hand, point the client at the installed app with the argument `mcp`
-(`/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect` on macOS):
+```sh
+pnpm lint                 # Biome + Clippy
+cargo fmt --all -- --check
+cargo test --workspace --locked
+pnpm build                # TypeScript check + Vite production build
+```
+
+`pnpm lint:ts` runs Biome for TypeScript/TSX. `pnpm lint:rust` runs
+`cargo clippy --workspace --all-targets -- -D warnings`.
+
+## Google Cloud setup
+
+The current project is:
+
+- Project ID: `haulmer-connect`
+- Project number: `252304543508`
+- OAuth audience: **Internal**
+- Allowed users: `@haulmer.com`
+
+Authenticate and select the project:
+
+```sh
+gcloud auth login
+gcloud config set project haulmer-connect
+gcloud auth application-default login
+```
+
+Enable the APIs used by the catalog. This command is safe to rerun:
+
+```sh
+gcloud services enable \
+  gmail.googleapis.com \
+  calendar-json.googleapis.com \
+  chat.googleapis.com \
+  meet.googleapis.com \
+  drive.googleapis.com \
+  docs.googleapis.com \
+  sheets.googleapis.com \
+  slides.googleapis.com \
+  forms.googleapis.com \
+  tasks.googleapis.com \
+  people.googleapis.com \
+  admin.googleapis.com \
+  cloudidentity.googleapis.com \
+  youtube.googleapis.com \
+  googleads.googleapis.com \
+  analyticsadmin.googleapis.com \
+  analyticsdata.googleapis.com \
+  searchconsole.googleapis.com \
+  content.googleapis.com
+```
+
+Some APIs, especially Business Profile, may require separate Google approval or
+an additional project configuration. The UI marks unavailable services without
+blocking the rest of the catalog.
+
+### OAuth consent screen and client
+
+In Google Cloud Console:
+
+1. Open **APIs & Services → OAuth consent screen**.
+2. Select **Internal**.
+3. Set the application name, support email and developer contact.
+4. Confirm the OAuth scopes needed by the catalog are available.
+5. Open **Credentials → Create credentials → OAuth client ID**.
+6. Select **Desktop app**.
+7. Keep the client ID and secret aligned with
+   `crates/core/src/oauth_client.rs`.
+
+The Desktop client ID and secret are included in the application by design:
+installed OAuth clients cannot keep a client secret confidential. Do not put
+the updater private key, GitHub tokens or any server credentials in the repo.
+
+For Google Workspace, the Google Cloud OAuth app must be trusted by the
+organization's admin if the Admin Console requires explicit trust for internal
+apps.
+
+### Local OAuth isolation
+
+When testing locally, use a separate config directory so the app does not touch
+an existing `gws` profile:
+
+```sh
+export GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$PWD/.local/gws"
+export GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file
+mkdir -p "$GOOGLE_WORKSPACE_CLI_CONFIG_DIR"
+pnpm tauri dev
+```
+
+The app sets these variables for its own `gws` processes when its settings
+require them. Never use a real user's default credentials directory in tests.
+
+## MCP integration
+
+The installed app can run as an MCP server:
+
+```sh
+/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect mcp
+```
+
+The UI can write the configuration for Claude Desktop and ChatGPT/Codex. The
+manual configuration examples are:
 
 ```jsonc
-// Claude Desktop: ~/Library/Application Support/Claude/claude_desktop_config.json
-{ "mcpServers": { "haulmer-connect": { "command": "<path to haulmer-connect>", "args": ["mcp"] } } }
+// Claude Desktop:
+// ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "haulmer-connect": {
+      "command": "<path-to-haulmer-connect>",
+      "args": ["mcp"]
+    }
+  }
+}
 ```
 
 ```toml
-# ChatGPT desktop, Codex CLI and IDE extension: ~/.codex/config.toml
+# ChatGPT desktop, Codex CLI and IDE extensions:
+# ~/.codex/config.toml
 [mcp_servers.haulmer-connect]
-command = "<path to haulmer-connect>"
+command = "<path-to-haulmer-connect>"
 args = ["mcp"]
 ```
 
-Restart the app afterwards. `auth` commands are refused over MCP; sign in with the app first.
+Authenticate in the desktop app first. `auth` commands are refused over MCP.
 
-## Test
+## Releases and updater signatures
+
+The release workflow in `.github/workflows/release.yml` builds:
+
+- Windows x64 NSIS: `.exe`
+- macOS Apple Silicon: `.dmg` and updater `.app.tar.gz`
+- macOS Intel: `.dmg` and updater `.app.tar.gz`
+- SHA-256 files, `SHA256SUMS.txt` and `latest.json`
+
+The updater artifacts are signed with a Tauri minisign-compatible key. This is
+different from OS code signing: the current pilot releases are **not** signed
+with an Apple Developer ID certificate or a Windows Authenticode certificate.
+
+### Generate the updater key once
+
+Keep the private key outside the repository:
 
 ```sh
-cargo test --workspace     # core behaviour with FakeRunner, FakeHttp and temp dirs
-cargo clippy --workspace
-pnpm build                 # type-check and build the UI
+pnpm tauri signer generate -w ~/.tauri/haulmer-connect.key
 ```
 
-Core tests drive the public `Core` API with the shared test doubles in
-`haulmer_connect_core::testing` (`FakeRunner`, `FakeHttp`), enabled for integration tests by
-the `testing` feature.
+The command writes a private key and prints the public key. Put only the public
+key in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. Never commit
+the private key. Losing it prevents existing installations from accepting
+future updates.
 
-## Release
+For a local signed build on macOS/Linux:
 
-CI (`.github/workflows/ci.yml`) runs `cargo test --workspace` and `pnpm build` on every pull
-request and push to `main`. Pushing a `v*` tag runs `.github/workflows/release.yml`, which
-builds a Windows x64 NSIS installer (`.exe`) and macOS `.dmg` files for Apple Silicon
-(`aarch64`) and Intel (`x64`), writes a `.sha256` file per installer plus `SHA256SUMS.txt`,
-signs the update files (`.app.tar.gz`, `*-setup.exe`) with the updater key, generates
-`latest.json`, and attaches everything to a **draft** GitHub Release. The app reads
-`latest.json` from the latest **published** release, so users see the update only after you
-publish the draft.
+```sh
+export TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/haulmer-connect.key"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<key-password>"
+pnpm tauri build
+```
 
-Two repository secrets are required (Settings → Secrets and variables → Actions); the build
-fails without them:
+On PowerShell:
 
-- `TAURI_SIGNING_PRIVATE_KEY`: contents of the updater private key.
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: its password.
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY="$HOME\.tauri\haulmer-connect.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<key-password>"
+pnpm tauri build
+```
 
-The private key lives outside the repo; only the public key is committed
-(`plugins.updater.pubkey` in `src-tauri/tauri.conf.json`). **If you lose the key, installed
-apps can no longer update**: users must download and reinstall a new build by hand (a new
-key means a new `pubkey`). A local `pnpm tauri build` also needs `TAURI_SIGNING_PRIVATE_KEY`
-(or `TAURI_SIGNING_PRIVATE_KEY_PATH`) set, because updater files are always created.
+The workflow requires these GitHub Actions secrets:
 
-To cut a release:
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-1. Bump `version` to the same value in `package.json`, `Cargo.toml` (`workspace.package`) and
-   `src-tauri/tauri.conf.json`; merge to `main`. The release workflow fails if the tag does not
-   match `tauri.conf.json`.
-2. Tag and push:
+Configure them under **Settings → Secrets and variables → Actions**. The private
+key can be provided as its contents or as a path understood by the Tauri CLI;
+the workflow uses the secret contents.
+
+### Create a release
+
+1. Update the version consistently in:
+   - `package.json`
+   - workspace `Cargo.toml`
+   - `src-tauri/tauri.conf.json`
+2. Run the local checks:
+
+   ```sh
+   pnpm install --frozen-lockfile
+   pnpm lint
+   cargo fmt --all -- --check
+   cargo test --workspace --locked
+   pnpm build
+   ```
+
+3. Commit and merge the version change to `main`.
+4. Create and push a matching tag:
+
    ```sh
    git tag v0.1.0
+   git push origin main
    git push origin v0.1.0
    ```
-3. Wait for the **Release** workflow, then review the draft under GitHub → Releases and
-   publish it.
 
-Builds are **not code-signed** (pilot). macOS users must right-click → Open the first time
-(or run `xattr -dr com.apple.quarantine /Applications/haulmer-connect.app`); Windows
-SmartScreen needs **More info → Run anyway**. Users can verify a download with
-`shasum -a 256 -c <file>.sha256` (macOS) or `Get-FileHash <file>` (PowerShell).
+   The workflow rejects a tag that does not exactly match
+   `src-tauri/tauri.conf.json.version`.
+5. Open the **Release** workflow in GitHub and wait for all three platform
+   builds.
+6. Review the generated draft release and publish it.
+
+The updater endpoint is:
+
+```text
+https://github.com/lopezjurip/haulmer-connect/releases/latest/download/latest.json
+```
+
+Verify installer downloads:
+
+```sh
+shasum -a 256 -c haulmer-connect_*.dmg.sha256
+```
+
+On PowerShell:
+
+```powershell
+Get-FileHash .\haulmer-connect_*setup.exe -Algorithm SHA256
+```
+
+Because pilot installers are not OS-code-signed, macOS may require
+**right-click → Open** the first time and Windows SmartScreen may require
+**More info → Run anyway**.

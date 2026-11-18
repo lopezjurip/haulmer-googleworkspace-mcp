@@ -45,7 +45,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDAwMDIzQTA4N0Y0RjQwMzMKUldRelFFOS9DRG9DQUJ3Sk00L1A3UFdMSkNiK04zRnhyK3NVdUxTbTFlUTd4WW8veHhScVlFWnYK",
-      "endpoints": ["https://github.com/haulmer/haulmer-connect/releases/latest/download/latest.json"]
+      "endpoints": ["https://github.com/lopezjurip/haulmer-connect/releases/latest/download/latest.json"]
     }
   }
 }
