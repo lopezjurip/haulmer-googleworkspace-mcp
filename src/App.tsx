@@ -26,6 +26,16 @@ import {
   SegmentedControlIndicator,
   SegmentedControlItem,
 } from "@ui-sdk/react/segmented-control";
+import adminIcon from "./assets/service-icons/admin.png";
+import calendarIcon from "./assets/service-icons/calendar.png";
+import chatIcon from "./assets/service-icons/chat.png";
+import docsIcon from "./assets/service-icons/docs.png";
+import driveIcon from "./assets/service-icons/drive.png";
+import formsIcon from "./assets/service-icons/forms.png";
+import gmailIcon from "./assets/service-icons/gmail.png";
+import meetIcon from "./assets/service-icons/meet.png";
+import sheetsIcon from "./assets/service-icons/sheets.png";
+import slidesIcon from "./assets/service-icons/slides.png";
 
 /** Google's "Third-party apps & services" page, where the person can also revoke access. */
 const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
@@ -43,6 +53,35 @@ type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | "update" | null
 /** Feedback shown after an action. */
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
 type AccessChoice = "off" | "read" | "write";
+
+const SERVICE_ICONS: Partial<Record<Service, string>> = {
+  gmail: gmailIcon,
+  calendar: calendarIcon,
+  chat: chatIcon,
+  meet: meetIcon,
+  drive: driveIcon,
+  docs: docsIcon,
+  sheets: sheetsIcon,
+  slides: slidesIcon,
+  forms: formsIcon,
+  "admin-reports": adminIcon,
+  "admin-directory": adminIcon,
+  "admin-groups": adminIcon,
+};
+
+function ServiceIcon({ src, label }: { src?: string; label: string }) {
+  if (src !== undefined) {
+    return <img src={src} alt="" aria-hidden="true" className="h-7 w-7 shrink-0 object-contain" />;
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+    >
+      {label.charAt(0)}
+    </span>
+  );
+}
 
 function serviceAccess(selection: Selection, service: Service): AccessChoice {
   if (HAS_LEVEL(selection, service, "write")) {
@@ -532,12 +571,15 @@ export default function App() {
         )}
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {catalogue.map((info) => (
-            <li key={info.service} className="p-4">
-              <p className="font-medium">{info.name}</p>
-              {info.availability_reason !== null && (
-                <p className="mt-1 text-xs text-amber-700">{info.availability_reason}</p>
-              )}
-              <div className="mt-3">
+            <li key={info.service} className="flex items-center gap-3 px-3 py-2.5">
+              <ServiceIcon src={SERVICE_ICONS[info.service]} label={info.name} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{info.name}</p>
+                {info.availability_reason !== null && (
+                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">{info.availability_reason}</p>
+                )}
+              </div>
+              <div className="shrink-0">
                 <AccessControl
                   ariaLabel={`${info.name} nivel de acceso`}
                   value={serviceAccess(selection, info.service)}
@@ -555,12 +597,15 @@ export default function App() {
         <h2 className="pt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Conectores empresariales de Google</h2>
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {businessCatalogue.map((info) => (
-            <li key={info.connector} className="p-4">
-              <p className="font-medium">{info.name}</p>
-              {info.availability_reason !== null && (
-                <p className="mt-1 text-xs text-amber-700">{info.availability_reason}</p>
-              )}
-              <div className="mt-3">
+            <li key={info.connector} className="flex items-center gap-3 px-3 py-2.5">
+              <ServiceIcon label={info.name} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{info.name}</p>
+                {info.availability_reason !== null && (
+                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">{info.availability_reason}</p>
+                )}
+              </div>
+              <div className="shrink-0">
                 <AccessControl
                   ariaLabel={`${info.name} nivel de acceso`}
                   value={businessAccess(businessSelection, info.connector)}
