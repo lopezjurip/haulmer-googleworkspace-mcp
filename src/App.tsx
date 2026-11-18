@@ -836,7 +836,13 @@ export default function App() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{accountText}</p>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              {hasChanges ? "Hay cambios sin guardar" : status?.account ? "Todo guardado" : "Selecciona servicios para conectar"}
+              {status?.account === null && hasChanges
+                ? "Esperando tu permiso"
+                : hasChanges
+                  ? "Hay cambios sin guardar"
+                  : status?.account
+                    ? "Todo guardado"
+                    : "Selecciona servicios para conectar"}
             </p>
           </div>
           <button
