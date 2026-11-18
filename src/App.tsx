@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ask, open } from "@tauri-apps/plugin-dialog";
-import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import {
   ERROR_TEXT,
   HAS_LEVEL,
-  type InstalledSkills,
   type BusinessConnector,
   type BusinessConnectorInfo,
   type BusinessSelection,
   HAS_BUSINESS_LEVEL,
-  type KeyStorage,
   type RevokeOutcome,
   type SaveOutcome,
   type Selection,
@@ -41,18 +39,8 @@ import slidesIcon from "./assets/service-icons/slides.png";
 import tasksIcon from "./assets/service-icons/tasks.png";
 import webMobileIcon from "./assets/service-icons/web-mobile.png";
 
-/** Google's "Third-party apps & services" page, where the person can also revoke access. */
-const GOOGLE_CONNECTIONS_URL = "https://myaccount.google.com/connections";
-const MCP_INSTALL_PROMPT = `Configura haulmer-connect como servidor MCP local, pero no modifiques ningún archivo sin pedirme confirmación.
-
-La aplicación ya está instalada en este equipo. Usa su ejecutable y agrega:
-- Claude Desktop: mcpServers.haulmer-connect con args ["mcp"] en claude_desktop_config.json.
-- ChatGPT/Codex: [mcp_servers.haulmer-connect] con args = ["mcp"] en ~/.codex/config.toml.
-
-Conserva las demás configuraciones, explícame qué cambiarías y dime qué cliente debo reiniciar.`;
-
 /** The one action running right now; controls stay disabled while one runs. */
-type Busy = "save" | "revoke" | "install" | "mcp" | "advanced" | "update" | null;
+type Busy = "save" | "revoke" | "update" | null;
 
 /** Feedback shown after an action. */
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
@@ -227,7 +215,6 @@ export default function App() {
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [update, setUpdate] = useState<Update | null>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>("auth-url", (event) => setAuthUrl(event.payload));
@@ -437,113 +424,6 @@ export default function App() {
     }
   }
 
-  /** Copies non-invasive MCP setup instructions for the user's AI client. */
-  async function handleCopyInstallPrompt() {
-    setBusy("mcp");
-    setNotice(null);
-    try {
-      await navigator.clipboard.writeText(MCP_INSTALL_PROMPT);
-      setShowInstallPrompt(true);
-      setNotice({ kind: "success", text: "Prompt copiado. Pégalo en Claude, ChatGPT o Codex." });
-    } catch (error) {
-      setNotice({ kind: "error", text: ERROR_TEXT(error) });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  /**
-   * Installs the gws skills for the enabled services in every agent found.
-   *
-   * @example
-   * <button onClick={handleInstall}>Install in my agents</button>
-   */
-  async function handleInstall() {
-    setBusy("install");
-    setNotice(null);
-    try {
-      const installed = await invoke<InstalledSkills[]>("install_skills");
-      if (installed.length === 0) {
-        setNotice({ kind: "info", text: "No se encontraron agentes en este equipo." });
-      } else {
-        try {
-          await revealItemInDir(installed[0].target);
-        } catch (error) {
-          setNotice({
-            kind: "error",
-            text: `Las skills se instalaron, pero no se pudo abrir la carpeta: ${ERROR_TEXT(error)}`,
-          });
-          return;
-        }
-        const targets = installed.map((item) => item.target).join(", ");
-        const skipped = [...new Set(installed.flatMap((item) => item.skipped))];
-        let text = `Skills instaladas en: ${targets}.`;
-        if (skipped.length > 0) {
-          text += ` Omitidas (instaladas por otra aplicación): ${skipped.join(", ")}.`;
-        }
-        setNotice({ kind: "success", text });
-      }
-    } catch (error) {
-      setNotice({ kind: "error", text: ERROR_TEXT(error) });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  /**
-   * Sets the gws config folder; `null` resets to the gws default folder.
-   *
-   * @example
-   * await changeConfigDir("/Users/ana/.config/haulmer-gws");
-   * await changeConfigDir(null);
-   */
-  async function changeConfigDir(dir: string | null) {
-    setBusy("advanced");
-    setNotice(null);
-    try {
-      await invoke("set_config_dir", { dir });
-      setNotice({ kind: "success", text: "Carpeta de configuración guardada." });
-    } catch (error) {
-      setNotice({ kind: "error", text: ERROR_TEXT(error) });
-    } finally {
-      await refreshStatus();
-      setBusy(null);
-    }
-  }
-
-  /**
-   * Opens a folder picker and saves the chosen config folder.
-   *
-   * @example
-   * <button onClick={handleChooseFolder}>Choose folder…</button>
-   */
-  async function handleChooseFolder() {
-    const chosen = await open({ directory: true, defaultPath: status?.config_dir });
-    if (typeof chosen === "string") {
-      await changeConfigDir(chosen);
-    }
-  }
-
-  /**
-   * Saves where gws keeps its encryption key.
-   *
-   * @example
-   * <select onChange={(event) => handleKeyStorage(event.target.value as KeyStorage)} />
-   */
-  async function handleKeyStorage(storage: KeyStorage) {
-    setBusy("advanced");
-    setNotice(null);
-    try {
-      await invoke("set_key_storage", { storage });
-      setNotice({ kind: "success", text: "Almacenamiento de claves guardado." });
-    } catch (error) {
-      setNotice({ kind: "error", text: ERROR_TEXT(error) });
-    } finally {
-      await refreshStatus();
-      setBusy(null);
-    }
-  }
-
   let accountText: string;
   if (status === null && statusError === null) {
     accountText = "Comprobando…";
@@ -601,13 +481,6 @@ export default function App() {
     noticeClass = "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200";
   } else if (notice?.kind === "info") {
     noticeClass = "border-slate-200 bg-slate-50 text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
-  }
-
-  let keyStorageHint = "";
-  if (status?.key_storage === "auto" && status.resolved_key_storage === "file") {
-    keyStorageHint = "Automático usa un archivo en la carpeta de configuración.";
-  } else if (status?.key_storage === "auto") {
-    keyStorageHint = "Automático usa el llavero del sistema.";
   }
 
   return (
@@ -725,100 +598,16 @@ export default function App() {
         <p className={`rounded-lg border p-3 text-sm ${noticeClass}`}>{notice.text}</p>
       )}
 
-      <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
-        <span className="font-medium">Usar desde aplicaciones de IA de escritorio</span>
+      <section className="border-t border-slate-200 pt-6 text-sm dark:border-zinc-800">
         <button
           type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
-          disabled={disabled}
-          onClick={handleCopyInstallPrompt}
-        >
-          Copiar prompt de instalación
-        </button>
-        {showInstallPrompt && (
-          <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600 dark:bg-zinc-900 dark:text-zinc-300">
-            {MCP_INSTALL_PROMPT}
-          </pre>
-        )}
-      </section>
-
-      <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
-        <button
-          type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
-          disabled={disabled}
-          onClick={handleInstall}
-        >
-          Instalar y abrir carpeta de skills
-        </button>
-        <button
-          type="button"
-          className="rounded-md border border-red-200 px-3 py-1.5 text-red-700 hover:bg-red-50 disabled:opacity-40 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
+          className="font-medium text-red-600 underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"
           disabled={disabled}
           onClick={handleRevokeAll}
         >
           Revocar todo
         </button>
-        <a
-          href={GOOGLE_CONNECTIONS_URL}
-          className="text-slate-500 underline hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-          onClick={(event) => {
-            event.preventDefault();
-            openUrl(GOOGLE_CONNECTIONS_URL);
-          }}
-        >
-          Comprobar acceso en Google
-        </a>
       </section>
-
-      <details className="rounded-lg border border-slate-200 p-4 text-sm dark:border-zinc-700">
-        <summary className="cursor-pointer font-medium text-slate-700 dark:text-zinc-200">Avanzado</summary>
-        <div className="mt-4 space-y-4">
-          <div>
-            <p className="text-slate-500 dark:text-zinc-400">Carpeta de configuración</p>
-            <p className="mt-1 break-all font-mono text-xs">
-              {status?.config_dir ?? "Desconocida"}
-              {status?.config_dir_is_default && (
-                <span className="font-sans text-slate-400 dark:text-zinc-500"> (predeterminada)</span>
-              )}
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                disabled={disabled}
-                onClick={handleChooseFolder}
-              >
-                Elegir carpeta…
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-50 disabled:opacity-40 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                disabled={disabled || status === null || status.config_dir_is_default}
-                onClick={() => changeConfigDir(null)}
-              >
-                Restablecer predeterminada
-              </button>
-            </div>
-          </div>
-          <label className="block">
-            <span className="text-slate-500 dark:text-zinc-400">Almacenamiento de claves</span>
-            <select
-              className="mt-1 block rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-zinc-600 dark:bg-zinc-900"
-              disabled={disabled}
-              value={status?.key_storage ?? "auto"}
-              onChange={(event) => handleKeyStorage(event.target.value as KeyStorage)}
-            >
-              <option value="auto">Automático</option>
-              <option value="keyring">Llavero</option>
-              <option value="file">Archivo</option>
-            </select>
-            {keyStorageHint !== "" && (
-              <span className="mt-1 block text-xs text-slate-400 dark:text-zinc-500">{keyStorageHint}</span>
-            )}
-          </label>
-        </div>
-      </details>
       </main>
       <div className="fixed bottom-3 left-1/2 z-30 w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.14)] backdrop-blur dark:border-zinc-700/80 dark:bg-zinc-950/95 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
         <div className="flex items-center gap-3">
