@@ -83,6 +83,20 @@ function ServiceIcon({ src, label }: { src?: string; label: string }) {
   );
 }
 
+function AvailabilityWarning({ message }: { message: string }) {
+  return (
+    <button
+      type="button"
+      title={message}
+      aria-label={`Advertencia: ${message}`}
+      className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-base leading-none text-amber-600 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:text-amber-300 dark:hover:bg-amber-950"
+      onClick={() => window.alert(message)}
+    >
+      ⚠
+    </button>
+  );
+}
+
 function serviceAccess(selection: Selection, service: Service): AccessChoice {
   if (HAS_LEVEL(selection, service, "write")) {
     return "write";
@@ -574,10 +588,12 @@ export default function App() {
             <li key={info.service} className="flex items-center gap-3 px-3 py-2.5">
               <ServiceIcon src={SERVICE_ICONS[info.service]} label={info.name} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{info.name}</p>
-                {info.availability_reason !== null && (
-                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">{info.availability_reason}</p>
-                )}
+                <div className="flex items-center gap-1">
+                  <p className="truncate font-medium">{info.name}</p>
+                  {info.availability_reason !== null && (
+                    <AvailabilityWarning message={info.availability_reason} />
+                  )}
+                </div>
               </div>
               <div className="shrink-0">
                 <AccessControl
@@ -600,10 +616,12 @@ export default function App() {
             <li key={info.connector} className="flex items-center gap-3 px-3 py-2.5">
               <ServiceIcon label={info.name} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{info.name}</p>
-                {info.availability_reason !== null && (
-                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">{info.availability_reason}</p>
-                )}
+                <div className="flex items-center gap-1">
+                  <p className="truncate font-medium">{info.name}</p>
+                  {info.availability_reason !== null && (
+                    <AvailabilityWarning message={info.availability_reason} />
+                  )}
+                </div>
               </div>
               <div className="shrink-0">
                 <AccessControl
