@@ -229,23 +229,17 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
             "Forms",
             "Tasks",
             "People",
-            "Admin Reports",
-            "Admin Directory",
-            "Admin Groups",
+            "Informes de administración",
+            "Directorio de administración",
+            "Grupos de administración",
             "Cloud Identity",
         ]
     );
-    assert_eq!(catalogue[0].read, "Read: read email");
-    assert_eq!(catalogue[0].write, "Write: send and modify email");
+    assert_eq!(catalogue[0].read, "Leer correos");
+    assert_eq!(catalogue[0].write, "Enviar y modificar correos");
     for info in &catalogue {
-        assert!(
-            info.read.len() > "Read: ".len() && info.read.starts_with("Read: "),
-            "{info:?}"
-        );
-        assert!(
-            info.write.len() > "Write: ".len() && info.write.starts_with("Write: "),
-            "{info:?}"
-        );
+        assert!(!info.read.is_empty(), "{info:?}");
+        assert!(!info.write.is_empty(), "{info:?}");
     }
 
     assert!(catalogue[..11].iter().all(|info| info.enabled));

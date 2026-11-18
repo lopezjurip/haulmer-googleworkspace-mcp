@@ -274,52 +274,52 @@ pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
         .into_iter()
         .map(|service| {
             let (name, read, write) = match service {
-                Service::Gmail => ("Gmail", "Read: read email", "Write: send and modify email"),
+                Service::Gmail => ("Gmail", "Leer correos", "Enviar y modificar correos"),
                 Service::Calendar => (
                     "Calendar",
-                    "Read: see calendars and events",
-                    "Write: create and edit events",
+                    "Ver calendarios y eventos",
+                    "Crear y editar eventos",
                 ),
                 Service::Chat => (
                     "Chat",
-                    "Read: read spaces, messages and members",
-                    "Write: send messages",
+                    "Leer espacios, mensajes y miembros",
+                    "Enviar mensajes",
                 ),
                 Service::Meet => (
                     "Meet",
-                    "Read: see meetings and their transcripts",
-                    "Write: create meetings",
+                    "Ver reuniones y sus transcripciones",
+                    "Crear reuniones",
                 ),
                 Service::Drive => (
                     "Drive",
-                    "Read: see and download files",
-                    "Write: create, edit and delete files",
+                    "Ver y descargar archivos",
+                    "Crear, editar y eliminar archivos",
                 ),
-                Service::Docs => ("Docs", "Read: read documents", "Write: edit documents"),
-                Service::Sheets => ("Sheets", "Read: read spreadsheets", "Write: edit spreadsheets"),
-                Service::Slides => ("Slides", "Read: read presentations", "Write: edit presentations"),
-                Service::Forms => ("Forms", "Read: read forms", "Write: edit forms"),
-                Service::Tasks => ("Tasks", "Read: read task lists", "Write: create and edit tasks"),
-                Service::People => ("People", "Read: read contacts and profiles", "Write: edit contacts"),
+                Service::Docs => ("Docs", "Leer documentos", "Editar documentos"),
+                Service::Sheets => ("Sheets", "Leer hojas de cálculo", "Editar hojas de cálculo"),
+                Service::Slides => ("Slides", "Leer presentaciones", "Editar presentaciones"),
+                Service::Forms => ("Forms", "Leer formularios", "Editar formularios"),
+                Service::Tasks => ("Tasks", "Leer listas de tareas", "Crear y editar tareas"),
+                Service::People => ("People", "Leer contactos y perfiles", "Editar contactos"),
                 Service::AdminReports => (
-                    "Admin Reports",
-                    "Read: audit and usage reports",
-                    "Write: unavailable for this API",
+                    "Informes de administración",
+                    "Leer informes de auditoría y uso",
+                    "No disponible para esta API",
                 ),
                 Service::AdminDirectory => (
-                    "Admin Directory",
-                    "Read: directory users",
-                    "Write: unavailable for this API",
+                    "Directorio de administración",
+                    "Leer usuarios del directorio",
+                    "No disponible para esta API",
                 ),
                 Service::AdminGroups => (
-                    "Admin Groups",
-                    "Read: groups and memberships",
-                    "Write: unavailable for this API",
+                    "Grupos de administración",
+                    "Leer grupos y membresías",
+                    "No disponible para esta API",
                 ),
                 Service::CloudIdentity => (
                     "Cloud Identity",
-                    "Read: organization identity groups",
-                    "Write: unavailable for this API",
+                    "Leer grupos de identidad de la organización",
+                    "No disponible para esta API",
                 ),
             };
             ServiceInfo {
@@ -353,7 +353,7 @@ pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
                         | Service::AdminGroups
                         | Service::CloudIdentity
                 ) && !granted.contains(service, Level::Read) {
-                    Some("Requires a Google Workspace administrator account or delegated admin permissions.")
+                    Some("Requiere una cuenta de administrador de Google Workspace o permisos de administrador delegado.")
                 } else {
                     None
                 },
@@ -380,38 +380,38 @@ pub fn business_catalogue_for(granted: &BusinessSelection) -> Vec<BusinessConnec
         (
             BusinessConnector::Youtube,
             "YouTube",
-            "Read: channels, videos, comments and analytics metadata",
-            "Write: upload and manage videos",
+            "Leer canales, videos, comentarios y metadatos de analítica",
+            "Subir y administrar videos",
         ),
         (
             BusinessConnector::GoogleAds,
             "Google Ads",
-            "Read: campaigns, ads, metrics and accounts",
-            "Write: create and manage campaigns",
+            "Leer campañas, anuncios, métricas y cuentas",
+            "Crear y administrar campañas",
         ),
         (
             BusinessConnector::Analytics,
             "Google Analytics",
-            "Read: properties, reports and metrics",
-            "Write: manage selected property configuration",
+            "Leer propiedades, informes y métricas",
+            "Administrar la configuración de propiedades seleccionadas",
         ),
         (
             BusinessConnector::SearchConsole,
             "Search Console",
-            "Read: sites, queries and performance data",
-            "Write: manage site verification and settings",
+            "Leer sitios, consultas y datos de rendimiento",
+            "Administrar verificaciones y configuración de sitios",
         ),
         (
             BusinessConnector::BusinessProfile,
             "Business Profile",
-            "Read: locations, reviews and performance",
-            "Write: manage locations and replies",
+            "Leer ubicaciones, reseñas y rendimiento",
+            "Administrar ubicaciones y respuestas",
         ),
         (
             BusinessConnector::MerchantCenter,
             "Merchant Center",
-            "Read: products, accounts and diagnostics",
-            "Write: manage products and feeds",
+            "Leer productos, cuentas y diagnósticos",
+            "Administrar productos y feeds",
         ),
     ]
     .into_iter()
@@ -427,7 +427,7 @@ pub fn business_catalogue_for(granted: &BusinessSelection) -> Vec<BusinessConnec
         {
             None
         } else {
-            Some("Connector not implemented yet; YouTube is available first.")
+            Some("Conector aún no implementado; YouTube es el primero disponible.")
         },
     })
     .collect()

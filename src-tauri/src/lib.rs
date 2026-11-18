@@ -231,8 +231,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            let open = MenuItemBuilder::with_id("open", "Open settings").build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Quit haulmer-connect").build(app)?;
+            let open = MenuItemBuilder::with_id("open", "Abrir configuración").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app)?;
             let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
             TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
@@ -304,20 +304,20 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
 
     let (status_text, account_text, permissions) = match state {
         TrayState::Connecting => (
-            "🟡 Connecting…".to_string(),
-            "Open haulmer-connect".to_string(),
+            "🟡 Conectando…".to_string(),
+            "Abrir haulmer-connect".to_string(),
             Vec::new(),
         ),
         TrayState::Error => (
-            "🔴 Status unavailable".to_string(),
-            "Open haulmer-connect".to_string(),
+            "🔴 Estado no disponible".to_string(),
+            "Abrir haulmer-connect".to_string(),
             Vec::new(),
         ),
         TrayState::Status(status) => {
             let (indicator, account_text) = match status.account.as_deref() {
-                Some(account) if status.token_valid => ("🟢 Connected", account.to_string()),
-                Some(account) => ("🟡 Reauthentication required", account.to_string()),
-                None => ("⚪ Not connected", "Connect Google account".to_string()),
+                Some(account) if status.token_valid => ("🟢 Conectado", account.to_string()),
+                Some(account) => ("🟡 Reautenticación requerida", account.to_string()),
+                None => ("⚪ Sin conexión", "Conectar cuenta de Google".to_string()),
             };
             (
                 indicator.to_string(),
@@ -338,7 +338,7 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
         }
     };
     let account_item = match MenuItemBuilder::with_id(
-        if account_text == "Connect Google account" {
+        if account_text == "Conectar cuenta de Google" {
             "connect"
         } else {
             "open"
@@ -353,14 +353,14 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
             return;
         }
     };
-    let open = match MenuItemBuilder::with_id("open", "Open settings").build(app) {
+    let open = match MenuItemBuilder::with_id("open", "Abrir configuración").build(app) {
         Ok(item) => item,
         Err(error) => {
             eprintln!("Could not build tray open item: {error}");
             return;
         }
     };
-    let quit = match MenuItemBuilder::with_id("quit", "Quit haulmer-connect").build(app) {
+    let quit = match MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app) {
         Ok(item) => item,
         Err(error) => {
             eprintln!("Could not build tray quit item: {error}");

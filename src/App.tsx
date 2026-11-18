@@ -265,10 +265,10 @@ export default function App() {
         confirmReplace: false,
       });
       if (outcome.kind === "needs_replace_confirmation") {
-        const replace = await ask("You already have gws connected with another app. Replace?", {
-          title: "Replace gws connection",
+        const replace = await ask("Ya tienes gws conectado con otra aplicación. ¿Quieres reemplazarlo?", {
+          title: "Reemplazar conexión de gws",
           kind: "warning",
-          okLabel: "Yes",
+          okLabel: "Sí",
           cancelLabel: "No",
         });
         if (!replace) {
@@ -286,13 +286,13 @@ export default function App() {
         setStatusError(null);
         setSelection(outcome.status.granted);
         setBusinessSelection(outcome.status.business_granted);
-        const text = account === null ? "Saved. All access removed." : `Saved. Connected as ${account}.`;
+        const text = account === null ? "Guardado. Se eliminó todo el acceso." : `Guardado. Conectado como ${account}.`;
         setNotice({ kind: "success", text });
       }
     } catch (error) {
       const text = ERROR_TEXT(error);
       if (text === "Google sign-in was cancelled") {
-        setNotice({ kind: "info", text: "Google sign-in was cancelled. Nothing changed." });
+        setNotice({ kind: "info", text: "Se canceló el inicio de sesión de Google. No se realizaron cambios." });
       } else {
         setNotice({ kind: "error", text });
       }
@@ -326,8 +326,8 @@ export default function App() {
    */
   async function handleRevokeAll() {
     const confirmed = await ask(
-      "Revoke all access? Your agents lose access to Google until you connect again.",
-      { title: "Revoke all", kind: "warning", okLabel: "Revoke all", cancelLabel: "Keep access" },
+      "¿Revocar todo el acceso? Tus agentes perderán acceso a Google hasta que vuelvas a conectar la cuenta.",
+      { title: "Revocar todo", kind: "warning", okLabel: "Revocar todo", cancelLabel: "Mantener acceso" },
     );
     if (!confirmed) {
       return;
@@ -338,17 +338,17 @@ export default function App() {
       let outcome = await invoke<RevokeOutcome>("revoke_all", { confirmForeign: false });
       if (outcome.kind === "needs_foreign_confirmation") {
         const revokeForeign = await ask(
-          "These gws credentials were created by another app. Revoke them anyway?",
-          { title: "Revoke all", kind: "warning", okLabel: "Yes", cancelLabel: "No" },
+          "Estas credenciales de gws fueron creadas por otra aplicación. ¿Revocarlas de todas formas?",
+          { title: "Revocar todo", kind: "warning", okLabel: "Sí", cancelLabel: "No" },
         );
         if (!revokeForeign) {
-          setNotice({ kind: "info", text: "Nothing was revoked." });
+          setNotice({ kind: "info", text: "No se revocó nada." });
           return;
         }
         outcome = await invoke<RevokeOutcome>("revoke_all", { confirmForeign: true });
       }
       if (outcome.kind === "revoked") {
-        setNotice({ kind: "success", text: "All access was revoked." });
+        setNotice({ kind: "success", text: "Se revocó todo el acceso." });
       }
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
@@ -365,7 +365,7 @@ export default function App() {
     try {
       await navigator.clipboard.writeText(MCP_INSTALL_PROMPT);
       setShowInstallPrompt(true);
-      setNotice({ kind: "success", text: "Prompt copied. Paste it into Claude, ChatGPT or Codex." });
+      setNotice({ kind: "success", text: "Prompt copiado. Pégalo en Claude, ChatGPT o Codex." });
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
     } finally {
@@ -385,22 +385,22 @@ export default function App() {
     try {
       const installed = await invoke<InstalledSkills[]>("install_skills");
       if (installed.length === 0) {
-        setNotice({ kind: "info", text: "No agents were found on this computer." });
+        setNotice({ kind: "info", text: "No se encontraron agentes en este equipo." });
       } else {
         try {
           await revealItemInDir(installed[0].target);
         } catch (error) {
           setNotice({
             kind: "error",
-            text: `Skills installed, but the folder could not be opened: ${ERROR_TEXT(error)}`,
+            text: `Las skills se instalaron, pero no se pudo abrir la carpeta: ${ERROR_TEXT(error)}`,
           });
           return;
         }
         const targets = installed.map((item) => item.target).join(", ");
         const skipped = [...new Set(installed.flatMap((item) => item.skipped))];
-        let text = `Skills installed in: ${targets}.`;
+        let text = `Skills instaladas en: ${targets}.`;
         if (skipped.length > 0) {
-          text += ` Skipped (installed by something else): ${skipped.join(", ")}.`;
+          text += ` Omitidas (instaladas por otra aplicación): ${skipped.join(", ")}.`;
         }
         setNotice({ kind: "success", text });
       }
@@ -423,7 +423,7 @@ export default function App() {
     setNotice(null);
     try {
       await invoke("set_config_dir", { dir });
-      setNotice({ kind: "success", text: "Config folder saved." });
+      setNotice({ kind: "success", text: "Carpeta de configuración guardada." });
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
     } finally {
@@ -456,7 +456,7 @@ export default function App() {
     setNotice(null);
     try {
       await invoke("set_key_storage", { storage });
-      setNotice({ kind: "success", text: "Key storage saved." });
+      setNotice({ kind: "success", text: "Almacenamiento de claves guardado." });
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
     } finally {
@@ -467,13 +467,13 @@ export default function App() {
 
   let accountText: string;
   if (status === null && statusError === null) {
-    accountText = "Checking…";
+    accountText = "Comprobando…";
   } else if (status === null) {
-    accountText = "Status unavailable";
+    accountText = "Estado no disponible";
   } else if (status.account !== null) {
     accountText = status.account;
   } else {
-    accountText = "Not connected";
+    accountText = "Sin conexión";
   }
 
   let noticeClass = "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200";
@@ -485,9 +485,9 @@ export default function App() {
 
   let keyStorageHint = "";
   if (status?.key_storage === "auto" && status.resolved_key_storage === "file") {
-    keyStorageHint = "Auto uses a file in the config folder.";
+    keyStorageHint = "Automático usa un archivo en la carpeta de configuración.";
   } else if (status?.key_storage === "auto") {
-    keyStorageHint = "Auto uses the system keyring.";
+    keyStorageHint = "Automático usa el llavero del sistema.";
   }
 
   const disabled = busy !== null;
@@ -496,39 +496,39 @@ export default function App() {
     <main className="mx-auto min-h-screen max-w-xl space-y-6 bg-white p-8 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {update !== null && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900">
-          <span className="text-slate-700 dark:text-slate-200">Version {update.version} is available</span>
+          <span className="text-slate-700 dark:text-slate-200">La versión {update.version} está disponible</span>
           <button
             type="button"
             className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             disabled={disabled}
             onClick={handleInstallUpdate}
           >
-            {busy === "update" ? "Installing…" : "Install and restart"}
+            {busy === "update" ? "Instalando…" : "Instalar y reiniciar"}
           </button>
         </div>
       )}
 
       <header>
         <h1 className="text-xl font-semibold">haulmer-connect</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Connect your AI agents to Google Workspace.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Conecta tus agentes de IA a Google Workspace.</p>
       </header>
 
       <section className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Google account</p>
+        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Cuenta de Google</p>
         <p className="mt-1 font-medium">{accountText}</p>
         {statusError !== null && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{statusError}</p>}
         {status !== null && status.account !== null && !status.token_valid && (
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">The sign-in expired. Click Save to sign in again.</p>
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">La sesión expiró. Pulsa Guardar para iniciar sesión nuevamente.</p>
         )}
         {status !== null && !status.gws_available && (
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">gws will be downloaded when you click Save.</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">gws se descargará al pulsar Guardar.</p>
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">What your agents can use</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Lo que pueden usar tus agentes</h2>
         {catalogueError !== null && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">Services unavailable: {catalogueError}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Servicios no disponibles: {catalogueError}</p>
         )}
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {catalogue.map((info) => (
@@ -539,7 +539,7 @@ export default function App() {
               )}
               <div className="mt-3">
                 <AccessControl
-                  ariaLabel={`${info.name} access`}
+                  ariaLabel={`${info.name} nivel de acceso`}
                   value={serviceAccess(selection, info.service)}
                   onChange={(access) =>
                     setSelection(updateServiceAccess(selection, info.service, access))
@@ -552,7 +552,7 @@ export default function App() {
           ))}
         </ul>
 
-        <h2 className="pt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Google business connectors</h2>
+        <h2 className="pt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Conectores empresariales de Google</h2>
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
           {businessCatalogue.map((info) => (
             <li key={info.connector} className="p-4">
@@ -562,7 +562,7 @@ export default function App() {
               )}
               <div className="mt-3">
                 <AccessControl
-                  ariaLabel={`${info.name} access`}
+                  ariaLabel={`${info.name} nivel de acceso`}
                   value={businessAccess(businessSelection, info.connector)}
                   onChange={(access) =>
                     setBusinessSelection(
@@ -578,12 +578,12 @@ export default function App() {
 
         {busy === "save" && (
           <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-900">
-            {authUrl === null && <span className="text-slate-600 dark:text-slate-300">Getting ready…</span>}
+            {authUrl === null && <span className="text-slate-600 dark:text-slate-300">Preparando…</span>}
             {authUrl !== null && (
               <span className="text-slate-600 dark:text-slate-300">
-                Waiting for Google sign-in…{" "}
+                Esperando el inicio de sesión de Google…{" "}
                 <button type="button" className="underline" onClick={() => openUrl(authUrl)}>
-                  Open it again
+                  Abrir nuevamente
                 </button>
               </span>
             )}
@@ -592,7 +592,7 @@ export default function App() {
               className="rounded-md border border-slate-300 px-3 py-1 hover:bg-white dark:border-slate-600 dark:hover:bg-slate-800"
               onClick={handleCancel}
             >
-              Cancel
+              Cancelar
             </button>
           </div>
         )}
@@ -604,9 +604,9 @@ export default function App() {
               disabled={disabled || (selection.length === 0 && !status?.account)}
               onClick={handleSave}
             >
-              Save
+              Guardar
             </button>
-            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Removing a service needs a new Google sign-in.</p>
+            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Quitar un servicio requiere iniciar sesión nuevamente en Google.</p>
           </div>
         )}
       </section>
@@ -616,14 +616,14 @@ export default function App() {
       )}
 
       <section className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6 text-sm">
-        <span className="font-medium">Use from desktop AI apps</span>
+        <span className="font-medium">Usar desde aplicaciones de IA de escritorio</span>
         <button
           type="button"
           className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:hover:bg-slate-800"
           disabled={disabled}
           onClick={handleCopyInstallPrompt}
         >
-          Copy install prompt
+          Copiar prompt de instalación
         </button>
         {showInstallPrompt && (
           <pre className="basis-full whitespace-pre-wrap rounded-md bg-slate-100 p-3 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
@@ -639,7 +639,7 @@ export default function App() {
           disabled={disabled}
           onClick={handleInstall}
         >
-          Install and open skills folder
+          Instalar y abrir carpeta de skills
         </button>
         <button
           type="button"
@@ -647,7 +647,7 @@ export default function App() {
           disabled={disabled}
           onClick={handleRevokeAll}
         >
-          Revoke all
+          Revocar todo
         </button>
         <a
           href={GOOGLE_CONNECTIONS_URL}
@@ -657,19 +657,19 @@ export default function App() {
             openUrl(GOOGLE_CONNECTIONS_URL);
           }}
         >
-          Check access on Google
+          Comprobar acceso en Google
         </a>
       </section>
 
       <details className="rounded-lg border border-slate-200 p-4 text-sm dark:border-slate-700">
-        <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-200">Advanced</summary>
+        <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-200">Avanzado</summary>
         <div className="mt-4 space-y-4">
           <div>
-            <p className="text-slate-500 dark:text-slate-400">Config folder</p>
+            <p className="text-slate-500 dark:text-slate-400">Carpeta de configuración</p>
             <p className="mt-1 break-all font-mono text-xs">
-              {status?.config_dir ?? "Unknown"}
+              {status?.config_dir ?? "Desconocida"}
               {status?.config_dir_is_default && (
-                <span className="font-sans text-slate-400 dark:text-slate-500"> (default)</span>
+                <span className="font-sans text-slate-400 dark:text-slate-500"> (predeterminada)</span>
               )}
             </p>
             <div className="mt-2 flex gap-2">
@@ -679,7 +679,7 @@ export default function App() {
                 disabled={disabled}
                 onClick={handleChooseFolder}
               >
-                Choose folder…
+                Elegir carpeta…
               </button>
               <button
                 type="button"
@@ -687,21 +687,21 @@ export default function App() {
                 disabled={disabled || status === null || status.config_dir_is_default}
                 onClick={() => changeConfigDir(null)}
               >
-                Reset to default
+                Restablecer predeterminada
               </button>
             </div>
           </div>
           <label className="block">
-            <span className="text-slate-500 dark:text-slate-400">Key storage</span>
+            <span className="text-slate-500 dark:text-slate-400">Almacenamiento de claves</span>
             <select
               className="mt-1 block rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-slate-600 dark:bg-slate-900"
               disabled={disabled}
               value={status?.key_storage ?? "auto"}
               onChange={(event) => handleKeyStorage(event.target.value as KeyStorage)}
             >
-              <option value="auto">Auto</option>
-              <option value="keyring">Keyring</option>
-              <option value="file">File</option>
+              <option value="auto">Automático</option>
+              <option value="keyring">Llavero</option>
+              <option value="file">Archivo</option>
             </select>
             {keyStorageHint !== "" && (
               <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">{keyStorageHint}</span>
