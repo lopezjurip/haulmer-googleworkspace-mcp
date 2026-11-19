@@ -73,6 +73,10 @@ pnpm build                # TypeScript check + Vite production build
 
 ## Google Cloud setup
 
+This setup is not required for normal use: the application already includes
+the public OAuth client credentials. The steps below are only needed to
+administer or modify the Google Cloud project.
+
 The current OAuth client lives in the renamed Google Cloud project:
 
 - Project ID: `haulmer-connect`
