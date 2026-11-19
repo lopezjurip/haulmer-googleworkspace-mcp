@@ -24,6 +24,13 @@ const IDENTIFIER: &str = "com.haulmer.googleworkspace.mcp";
 /// Event emitted with the Google sign-in URL while `save` waits for the login.
 const AUTH_URL_EVENT: &str = "auth-url";
 
+fn mcp_paths(home: PathBuf, data_dir: PathBuf) -> Paths {
+    Paths {
+        app_data: data_dir.join(IDENTIFIER),
+        home,
+    }
+}
+
 /// `Core::status`.
 ///
 /// # Example
@@ -615,14 +622,32 @@ pub fn run_mcp() -> Result<(), CoreError> {
             _ => data_dir = home.join(".local/share"),
         }
     }
-    let core = Core::system(Paths {
-        app_data: data_dir.join(IDENTIFIER),
-        home,
-    });
+    let core = Core::system(mcp_paths(home, data_dir));
     mcp::serve(
         &core,
         &open_app_detached,
         std::io::stdin().lock(),
         std::io::stdout().lock(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::mcp_paths;
+
+    #[test]
+    fn mcp_uses_the_same_app_data_folder_as_tauri() {
+        let paths = mcp_paths(
+            "/Users/ana".into(),
+            "/Users/ana/Library/Application Support".into(),
+        );
+
+        assert_eq!(
+            paths.app_data,
+            Path::new("/Users/ana/Library/Application Support/com.haulmer.googleworkspace.mcp")
+        );
+        assert_eq!(paths.home, Path::new("/Users/ana"));
+    }
 }
