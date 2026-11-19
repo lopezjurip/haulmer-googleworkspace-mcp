@@ -22,16 +22,16 @@ impl Core {
     /// # Example
     ///
     /// ```no_run
-    /// # use haulmer_connect_core::{Core, Paths};
+    /// # use haulmer_googleworkspace_mcp_core::{Core, Paths};
     /// # let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() });
     /// let channel = core.youtube_channel()?;
     /// println!("{}", channel["items"][0]["snippet"]["title"]);
-    /// # Ok::<(), haulmer_connect_core::CoreError>(())
+    /// # Ok::<(), haulmer_googleworkspace_mcp_core::CoreError>(())
     /// ```
     pub fn youtube_channel(&self) -> Result<Value, CoreError> {
         let gws = self.find_gws()?.ok_or_else(|| CoreError::Gws {
             exit_code: 2,
-            message: "gws is not installed; open haulmer-connect and click Save".into(),
+            message: "gws is not installed; open haulmer-googleworkspace-mcp and click Save".into(),
         })?;
         let refresh_token = self.refresh_token(&gws)?;
         let access_token = self.exchange_refresh_token(&refresh_token)?;

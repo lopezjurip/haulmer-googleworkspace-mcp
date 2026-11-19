@@ -1,6 +1,6 @@
-# haulmer-connect
+# haulmer-googleworkspace-mcp
 
-`haulmer-connect` is a Tauri desktop app for granting local AI agents access to
+`haulmer-googleworkspace-mcp` is a Tauri desktop app for granting local AI agents access to
 Google Workspace and selected Google business APIs. It runs locally on macOS and
 Windows; tokens stay on the user's machine.
 
@@ -73,9 +73,10 @@ pnpm build                # TypeScript check + Vite production build
 
 ## Google Cloud setup
 
-The current project is:
+The current OAuth client lives in the renamed Google Cloud project:
 
 - Project ID: `haulmer-connect`
+- Project name: `haulmer-googleworkspace-mcp`
 - Project number: `252304543508`
 - OAuth audience: **Internal**
 - Allowed users: `@haulmer.com`
@@ -158,7 +159,7 @@ require them. Never use a real user's default credentials directory in tests.
 The installed app can run as an MCP server:
 
 ```sh
-/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect mcp
+/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp mcp
 ```
 
 ### Connect an agent
@@ -171,7 +172,7 @@ works with no Google account connected, and it has two cards.
 1. Click **Instalar MCP**.
 2. Your AI app opens (for example Claude Desktop). Click "Instalar" there.
 
-The app builds `haulmer-connect.mcpb`, saves it in its data folder and opens it
+The app builds `haulmer-googleworkspace-mcp.mcpb`, saves it in its data folder and opens it
 with the default app. The OS hands the file to a compatible Chat app, which
 shows its own install dialog. If no app can open `.mcpb` files, the window says
 so ("No encontré una app que abra extensiones MCP. Usa el prompt de abajo.").
@@ -216,11 +217,11 @@ inside the bundle.
 Use this only if you configure a client by hand. For Claude Code and Codex:
 
 ```sh
-claude mcp add --scope user haulmer-connect -- "<path-to-haulmer-connect>" mcp
-claude mcp get haulmer-connect
+claude mcp add --scope user haulmer-googleworkspace-mcp -- "<path-to-haulmer-googleworkspace-mcp>" mcp
+claude mcp get haulmer-googleworkspace-mcp
 
-codex mcp add haulmer-connect -- "<path-to-haulmer-connect>" mcp
-codex mcp get haulmer-connect
+codex mcp add haulmer-googleworkspace-mcp -- "<path-to-haulmer-googleworkspace-mcp>" mcp
+codex mcp get haulmer-googleworkspace-mcp
 ```
 
 For Claude Desktop, use **Instalar MCP** instead. If you prefer to edit its
@@ -230,8 +231,8 @@ configuration by hand (Edit Config):
 // ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
-    "haulmer-connect": {
-      "command": "<path-to-haulmer-connect>",
+    "haulmer-googleworkspace-mcp": {
+      "command": "<path-to-haulmer-googleworkspace-mcp>",
       "args": ["mcp"]
     }
   }
@@ -242,8 +243,8 @@ configuration by hand (Edit Config):
 # ChatGPT desktop, Codex CLI and IDE extensions:
 # ~/.codex/config.toml
 # In ChatGPT desktop you can also use Settings > MCP servers.
-[mcp_servers.haulmer-connect]
-command = "<path-to-haulmer-connect>"
+[mcp_servers.haulmer-googleworkspace-mcp]
+command = "<path-to-haulmer-googleworkspace-mcp>"
 args = ["mcp"]
 ```
 
@@ -255,15 +256,15 @@ args = ["mcp"]
   (with "Lectura" or "Lectura y Escritura") and the ones it may not, the business
   connectors, and the next step to activate more services. Models should call it
   first.
-- `open_haulmer_connect`: opens the desktop app on its settings window.
+- `open_haulmer_googleworkspace_mcp`: opens the desktop app on its settings window.
 
 It is best to authenticate in the desktop app first, but you do not have to.
 When a `gws` call fails, the server answers in Spanish with the next step. It
 names the exact button (**Abrir configuración**, **Conectar** or **Guardar**)
 for a missing `gws`, no account, an expired session or a missing permission, and
-it suggests `open_haulmer_connect`.
+it suggests `open_haulmer_googleworkspace_mcp`.
 
-The app allows one instance. A second launch, including `open_haulmer_connect`,
+The app allows one instance. A second launch, including `open_haulmer_googleworkspace_mcp`,
 shows the settings window instead of starting a second tray icon.
 
 ## Releases and updater signatures
@@ -284,7 +285,7 @@ with an Apple Developer ID certificate or a Windows Authenticode certificate.
 Keep the private key outside the repository:
 
 ```sh
-pnpm tauri signer generate -w ~/.tauri/haulmer-connect.key
+pnpm tauri signer generate -w ~/.tauri/haulmer-googleworkspace-mcp.key
 ```
 
 The command writes a private key and prints the public key. Put only the public
@@ -295,7 +296,7 @@ future updates.
 For a local signed build on macOS/Linux:
 
 ```sh
-export TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/haulmer-connect.key"
+export TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/haulmer-googleworkspace-mcp.key"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<key-password>"
 pnpm tauri build
 ```
@@ -303,7 +304,7 @@ pnpm tauri build
 On PowerShell:
 
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY="$HOME\.tauri\haulmer-connect.key"
+$env:TAURI_SIGNING_PRIVATE_KEY="$HOME\.tauri\haulmer-googleworkspace-mcp.key"
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<key-password>"
 pnpm tauri build
 ```
@@ -351,19 +352,19 @@ the workflow uses the secret contents.
 The updater endpoint is:
 
 ```text
-https://github.com/lopezjurip/haulmer-connect/releases/latest/download/latest.json
+https://github.com/lopezjurip/haulmer-googleworkspace-mcp/releases/latest/download/latest.json
 ```
 
 Verify installer downloads:
 
 ```sh
-shasum -a 256 -c haulmer-connect_*.dmg.sha256
+shasum -a 256 -c haulmer-googleworkspace-mcp_*.dmg.sha256
 ```
 
 On PowerShell:
 
 ```powershell
-Get-FileHash .\haulmer-connect_*setup.exe -Algorithm SHA256
+Get-FileHash .\haulmer-googleworkspace-mcp_*setup.exe -Algorithm SHA256
 ```
 
 Because pilot installers are not OS-code-signed, macOS may require

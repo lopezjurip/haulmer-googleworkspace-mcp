@@ -3,10 +3,10 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use haulmer_connect_core::gws_env::MARKER_FILE;
-use haulmer_connect_core::revoke::REVOKE_URL;
-use haulmer_connect_core::testing::{CallKind, FakeHttp, FakeReply, FakeRunner};
-use haulmer_connect_core::{
+use haulmer_googleworkspace_mcp_core::gws_env::MARKER_FILE;
+use haulmer_googleworkspace_mcp_core::revoke::REVOKE_URL;
+use haulmer_googleworkspace_mcp_core::testing::{CallKind, FakeHttp, FakeReply, FakeRunner};
+use haulmer_googleworkspace_mcp_core::{
     BusinessConnector, BusinessSelection, Core, CoreError, HttpResponse, Level, Paths, SaveOutcome,
     Selection, Service,
 };

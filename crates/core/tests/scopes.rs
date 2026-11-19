@@ -1,7 +1,9 @@
 //! T02: scope catalogue. Expected values come from the spec table (`docs/spec.md`, "Scope catalogue").
 
-use haulmer_connect_core::scopes;
-use haulmer_connect_core::{BusinessConnector, BusinessSelection, Level, Selection, Service};
+use haulmer_googleworkspace_mcp_core::scopes;
+use haulmer_googleworkspace_mcp_core::{
+    BusinessConnector, BusinessSelection, Level, Selection, Service,
+};
 
 #[test]
 fn default_selection_is_read_for_gmail_calendar_chat_meet_only() {

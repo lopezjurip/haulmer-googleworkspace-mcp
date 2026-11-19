@@ -35,7 +35,7 @@ fn to_response(
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::SystemHttp;
+/// use haulmer_googleworkspace_mcp_core::SystemHttp;
 /// let http = SystemHttp::new();
 /// ```
 #[derive(Debug, Default, Clone, Copy)]
@@ -47,7 +47,7 @@ impl SystemHttp {
     /// # Example
     ///
     /// ```
-    /// let http = haulmer_connect_core::SystemHttp::new();
+    /// let http = haulmer_googleworkspace_mcp_core::SystemHttp::new();
     /// ```
     pub fn new() -> Self {
         Self
@@ -60,7 +60,7 @@ impl HttpClient for SystemHttp {
     /// # Example
     ///
     /// ```no_run
-    /// use haulmer_connect_core::{HttpClient, SystemHttp};
+    /// use haulmer_googleworkspace_mcp_core::{HttpClient, SystemHttp};
     /// let response = SystemHttp::new().get("https://example.com");
     /// ```
     fn get(&self, url: &str) -> Result<HttpResponse, CoreError> {
@@ -82,7 +82,7 @@ impl HttpClient for SystemHttp {
     /// # Example
     ///
     /// ```no_run
-    /// use haulmer_connect_core::{HttpClient, SystemHttp};
+    /// use haulmer_googleworkspace_mcp_core::{HttpClient, SystemHttp};
     /// let response = SystemHttp::new().post_form("https://oauth2.googleapis.com/revoke", &[("token", "t")]);
     /// ```
     fn post_form(&self, url: &str, form: &[(&str, &str)]) -> Result<HttpResponse, CoreError> {

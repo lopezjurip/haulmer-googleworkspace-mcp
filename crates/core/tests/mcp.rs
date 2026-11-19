@@ -1,11 +1,11 @@
 //! MCP server (`mcp::serve`): the `gws` tool, the diagnosis of its failures and
-//! `open_haulmer_connect`.
+//! `open_haulmer_googleworkspace_mcp`.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner};
-use haulmer_connect_core::{Core, CoreError, Paths, mcp};
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeReply, FakeRunner};
+use haulmer_googleworkspace_mcp_core::{Core, CoreError, Paths, mcp};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
@@ -68,7 +68,7 @@ fn initialize_and_list_tools() {
     assert_eq!(replies[0]["result"]["protocolVersion"], "2025-03-26");
     assert_eq!(
         replies[0]["result"]["serverInfo"]["name"],
-        "haulmer-connect"
+        "haulmer-googleworkspace-mcp"
     );
     let tools = &replies[1]["result"]["tools"];
     assert_eq!(tools[0]["name"], "gws");
@@ -77,9 +77,9 @@ fn initialize_and_list_tools() {
         tools[0]["description"]
             .as_str()
             .unwrap()
-            .contains("open_haulmer_connect")
+            .contains("open_haulmer_googleworkspace_mcp")
     );
-    assert_eq!(tools[1]["name"], "open_haulmer_connect");
+    assert_eq!(tools[1]["name"], "open_haulmer_googleworkspace_mcp");
     assert_eq!(
         tools[1]["inputSchema"],
         json!({"type": "object", "properties": {}})
@@ -138,7 +138,7 @@ fn tool_call_refuses_auth() {
     assert_eq!(replies[0]["result"]["isError"], true);
     assert_eq!(
         replies[0]["result"]["content"][0]["text"],
-        "Los comandos auth están desactivados en MCP. Conecta la cuenta desde la app haulmer-connect."
+        "Los comandos auth están desactivados en MCP. Conecta la cuenta desde la app haulmer-googleworkspace-mcp."
     );
     assert!(runner.calls().is_empty());
 }
@@ -148,7 +148,7 @@ fn assert_points_to_settings(text: &str) {
     assert!(text.contains("barra de menú"), "{text}");
     assert!(text.contains("bandeja del sistema"), "{text}");
     assert!(text.contains("\"Abrir configuración\""), "{text}");
-    assert!(text.contains("open_haulmer_connect"), "{text}");
+    assert!(text.contains("open_haulmer_googleworkspace_mcp"), "{text}");
 }
 
 /// The text and `isError` flag of the first reply.
@@ -343,11 +343,11 @@ fn a_successful_call_is_never_diagnosed() {
 
 fn open_call(id: u32) -> Value {
     json!({"jsonrpc": "2.0", "id": id, "method": "tools/call",
-        "params": {"name": "open_haulmer_connect", "arguments": {}}})
+        "params": {"name": "open_haulmer_googleworkspace_mcp", "arguments": {}}})
 }
 
 #[test]
-fn open_haulmer_connect_opens_the_app_and_says_what_to_tell_the_person() {
+fn open_haulmer_googleworkspace_mcp_opens_the_app_and_says_what_to_tell_the_person() {
     let (_home, _app_data, _runner, core) = setup();
     let opened = AtomicUsize::new(0);
     let open_app = || {
@@ -360,15 +360,15 @@ fn open_haulmer_connect_opens_the_app_and_says_what_to_tell_the_person() {
     assert!(!is_error);
     assert_eq!(
         text,
-        "Pedí abrir haulmer-connect en su configuración. Si no aparece, pídele a la persona que lo \
-         abra desde el ícono de haulmer-connect (barra de menús en macOS, bandeja del sistema en \
+        "Pedí abrir haulmer-googleworkspace-mcp en su configuración. Si no aparece, pídele a la persona que lo \
+         abra desde el ícono de haulmer-googleworkspace-mcp (barra de menús en macOS, bandeja del sistema en \
          Windows) › \"Abrir configuración\"."
     );
     assert_eq!(opened.load(Ordering::SeqCst), 1);
 }
 
 #[test]
-fn open_haulmer_connect_reports_when_the_app_cannot_open() {
+fn open_haulmer_googleworkspace_mcp_reports_when_the_app_cannot_open() {
     let (_home, _app_data, _runner, core) = setup();
     let open_app = || Err(CoreError::Process("no window".into()));
 
@@ -424,15 +424,15 @@ fn status_lists_the_account_and_the_levels_per_service() {
         !text.contains("Sin permiso: Chat, Meet, Drive, Gmail"),
         "{text}"
     );
-    assert!(
-        text.contains("\nPara activar más servicios: pídele a la persona que abra haulmer-connect")
-    );
+    assert!(text.contains(
+        "\nPara activar más servicios: pídele a la persona que abra haulmer-googleworkspace-mcp"
+    ));
     assert!(
         text.contains("\"Abrir configuración\", active el servicio y pulse \"Guardar\"."),
         "{text}"
     );
     assert!(
-        text.ends_with("También puedes llamar a open_haulmer_connect."),
+        text.ends_with("También puedes llamar a open_haulmer_googleworkspace_mcp."),
         "{text}"
     );
     assert!(!text.contains("Conectores de negocio"), "{text}");

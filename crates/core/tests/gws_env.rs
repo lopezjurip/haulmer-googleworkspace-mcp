@@ -3,12 +3,12 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use haulmer_connect_core::gws_env::{
+use haulmer_googleworkspace_mcp_core::gws_env::{
     MARKER_FILE, credentials_exist, foreign_credentials, remove_marker, write_marker,
 };
-use haulmer_connect_core::oauth_client::{CLIENT_ID, CLIENT_SECRET};
-use haulmer_connect_core::testing::{FakeHttp, FakeRunner};
-use haulmer_connect_core::{CommandSpec, Core, KeyStorage, Paths};
+use haulmer_googleworkspace_mcp_core::oauth_client::{CLIENT_ID, CLIENT_SECRET};
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeRunner};
+use haulmer_googleworkspace_mcp_core::{CommandSpec, Core, KeyStorage, Paths};
 use tempfile::TempDir;
 
 /// Temp home + temp app data and a core over them.

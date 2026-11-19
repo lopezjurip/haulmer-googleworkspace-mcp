@@ -21,7 +21,7 @@ Modules `settings` and `gws_env`.
   - `NO_COLOR=1`; remove `GOOGLE_APPLICATION_CREDENTIALS` and `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`, `GOOGLE_WORKSPACE_CLI_TOKEN` from the child env;
   - cwd = an app-controlled folder `<app_data>/run` (gws loads `.env` from its cwd).
 - Helper `credentials_exist(dir)`: `credentials.enc` or `credentials.json` exists.
-- Ownership marker: after a successful login the app writes `<config_dir>/haulmer-connect.json`; "foreign credentials" = credentials exist and no marker.
+- Ownership marker: after a successful login the app writes `<config_dir>/haulmer-googleworkspace-mcp.json`; "foreign credentials" = credentials exist and no marker.
 
 ## Acceptance criteria
 - [x] Custom folder → every built env has CONFIG_DIR and KEYRING_BACKEND=file (auto).

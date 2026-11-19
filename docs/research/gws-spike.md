@@ -1,4 +1,4 @@
-# haulmer-connect spike: gws v0.22.5 facts
+# haulmer-googleworkspace-mcp spike: gws v0.22.5 facts
 
 Date: 2026-11-16. Source: `googleworkspace/cli` at tag `v0.22.5` (commit `705fb0ec`), installed binary `gws 0.22.5`, plus yup-oauth2 12.1.2 (the version in Cargo.lock).
 Short links: `AC` = https://github.com/googleworkspace/cli/blob/v0.22.5/crates/google-workspace-cli/src/auth_commands.rs, `CS` = …/src/credential_store.rs, `AU` = …/src/auth.rs.
@@ -83,7 +83,7 @@ Files in the config folder:
 
 ⚠⚠ **Encryption key collision (important for the pilot's custom folder).** With the default `keyring` backend on macOS and Windows, the key lives in the OS keychain under **service `gws-cli`, account `$USER`**. That entry is shared by every config folder (`CS#L362-L367`).
 - If a key is already there, gws uses it and **deletes `<dir>/.encryption_key`** (`CS#L204-L255`).
-- So a haulmer-connect login with a custom folder reads, or creates, the same keychain item that the other person's `~/.config/gws` setup uses.
+- So a haulmer-googleworkspace-mcp login with a custom folder reads, or creates, the same keychain item that the other person's `~/.config/gws` setup uses.
 - If that setup relies on `.encryption_key`, our first login would create a keychain key. Their next gws run would then use the keychain key and delete their `.encryption_key`, and `credentials.enc` would no longer decrypt. A reasonable inference from the code; not reproduced.
 - **Recommendation:** always set `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file` together with a non-default config folder. Then the key is `<dir>/.encryption_key`, separate per folder (`CS#L325-L340`). Also write it into the installed skills. The trade-off is that the key sits as a file next to the encrypted credentials, so the encryption protects much less.
 

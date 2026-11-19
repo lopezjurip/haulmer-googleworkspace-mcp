@@ -1,4 +1,4 @@
-# haulmer-connect: MCP install prompt research
+# haulmer-googleworkspace-mcp: MCP install prompt research
 
 Date: 2026-11-18. Sources: Tauri `tauri-v2.12.6` (the crate in `Cargo.lock`), `tauri-cli-v2.12.4` (the CLI in `node_modules`, bundler 2.10.4), `tauri-utils-v2.10.3`, plugins-workspace `cli-v2.5.0` (commit `a2364a5f`, also holds single-instance 2.5.0) and `updater-v2.14.1`, Rust `1.99.1` std, libuv `v1.53.0`, MCP TypeScript SDK `v1.29.0`, MCPB `v2.1.2`, Codex `rust-v0.169.1`, VS Code `1.147.0`, plus official docs fetched on 2026-11-18.
 Short links:
@@ -28,9 +28,9 @@ Release targets: `.github/workflows/release.yml:26-39` builds Windows x64 NSIS a
 ## 1. Is `current_exe()` a stable path to give to an MCP client?
 
 **ANSWER: Yes for an installed app. No for an app that macOS translocated or that runs from the mounted DMG.** Installed paths survive relaunches and in-app updates:
-- macOS: `/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect`
-- Windows, default per-user install: `%LOCALAPPDATA%\haulmer-connect\haulmer-connect.exe`
-- Windows, per-machine install: `%ProgramFiles%\haulmer-connect\haulmer-connect.exe`
+- macOS: `/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp`
+- Windows, default per-user install: `%LOCALAPPDATA%\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe`
+- Windows, per-machine install: `%ProgramFiles%\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe`
 
 The app can detect the two bad macOS cases only with a string check on the path. Apple has no supported API for this. Use plain `std::env::current_exe()` and never canonicalize the result on Windows.
 
@@ -57,11 +57,11 @@ The app can detect the two bad macOS cases only with a string check on the path.
     - the path starts with `/Volumes/`: copy the prompt, but show a warning. An app installed on an external drive also lives under `/Volumes/` and works, so a refusal there would be a false positive.
 
 **Running from the mounted DMG**
-- A `/Volumes/<volume>/haulmer-connect.app/...` path exists only while the image is mounted. Any client config that points there breaks after the person ejects the image.
+- A `/Volumes/<volume>/haulmer-googleworkspace-mcp.app/...` path exists only while the image is mounted. Any client config that points there breaks after the person ejects the image.
 - **UNVERIFIED:** whether macOS translocates an app that is launched from a quarantined, unsigned DMG. The DTS note does not mention disk images. The path check above covers both outcomes.
 
 **Windows NSIS**
-- haulmer-connect sets no `bundle.windows.nsis` options (`src-tauri/tauri.conf.json`). So the install mode is the default, `CurrentUser` ([`TU/config.rs#L821-L843`](https://github.com/tauri-apps/tauri/blob/tauri-utils-v2.10.3/crates/tauri-utils/src/config.rs#L821-L843)).
+- haulmer-googleworkspace-mcp sets no `bundle.windows.nsis` options (`src-tauri/tauri.conf.json`). So the install mode is the default, `CurrentUser` ([`TU/config.rs#L821-L843`](https://github.com/tauri-apps/tauri/blob/tauri-utils-v2.10.3/crates/tauri-utils/src/config.rs#L821-L843)).
 - Default folders ([`NSI#L532-L551`](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi#L532-L551)):
   - `currentUser`: `$LOCALAPPDATA\${PRODUCTNAME}`, which needs no admin rights (`RequestExecutionLevel user`, [`NSI#L106-L111`](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi#L106-L111)).
   - `perMachine`: `$PROGRAMFILES64\${PRODUCTNAME}`.
@@ -82,7 +82,7 @@ The app can detect the two bad macOS cases only with a string check on the path.
   - it canonicalizes ([`TU/platform/starting_binary.rs#L40-L41`](https://github.com/tauri-apps/tauri/blob/tauri-utils-v2.10.3/crates/tauri-utils/src/platform/starting_binary.rs#L40-L41)), so it also returns `\\?\` on Windows;
   - on macOS it returns an error for any path with a symlink ancestor ([`#L66-L83`](https://github.com/tauri-apps/tauri/blob/tauri-utils-v2.10.3/crates/tauri-utils/src/platform/starting_binary.rs#L66-L83)).
 - Plain `std::env::current_exe()`, as `lib.rs:211` and `:223` use today, is correct.
-- In `pnpm tauri dev` the path is `target/debug/haulmer-connect`. That is fine for testing.
+- In `pnpm tauri dev` the path is `target/debug/haulmer-googleworkspace-mcp`. That is fine for testing.
 
 ## 2. What does `tauri-plugin-cli` actually do?
 
@@ -106,7 +106,7 @@ The app can detect the two bad macOS cases only with a string check on the path.
 - The [plugin docs](https://v2.tauri.app/plugin/cli/) call `app.cli().matches()` inside `.setup()`.
   - `.setup()` runs on `RuntimeRunEvent::Ready`, after the loop starts ([`TA#L1441-L1444`](https://github.com/tauri-apps/tauri/blob/tauri-v2.12.6/crates/tauri/src/app.rs#L1441-L1444)).
   - Before the user's closure, Tauri builds every window in the config ([`TA#L2688-L2701`](https://github.com/tauri-apps/tauri/blob/tauri-v2.12.6/crates/tauri/src/app.rs#L2688-L2701)).
-  - haulmer-connect declares two windows (`tauri.conf.json:13-28`), and `create` defaults to `true` ([`TU/config.rs#L1976-L1977`](https://github.com/tauri-apps/tauri/blob/tauri-utils-v2.10.3/crates/tauri-utils/src/config.rs#L1976-L1977)). So two hidden webviews exist before an `mcp` branch could run.
+  - haulmer-googleworkspace-mcp declares two windows (`tauri.conf.json:13-28`), and `create` defaults to `true` ([`TU/config.rs#L1976-L1977`](https://github.com/tauri-apps/tauri/blob/tauri-utils-v2.10.3/crates/tauri-utils/src/config.rs#L1976-L1977)). So two hidden webviews exist before an `mcp` branch could run.
 
 **`--help` and `--version`**
 - The plugin returns them as matches and prints nothing ([`CLI/parser.rs#L106-L127`](https://github.com/tauri-apps/plugins-workspace/blob/cli-v2.5.0/plugins/cli/src/parser.rs#L106-L127)).
@@ -160,7 +160,7 @@ The app can detect the two bad macOS cases only with a string check on the path.
 - `STARTUPINFOW`: "If a GUI process is being started and neither STARTF_FORCEONFEEDBACK or STARTF_FORCEOFFFEEDBACK is specified, the process feedback cursor is used." The cursor stays on for two seconds unless the process makes a GUI call.
 - libuv never sets either flag ([`UV#L1039`](https://github.com/libuv/libuv/blob/v1.53.0/src/win/process.c#L1039)). Rust std sets one only on request ([`STD/sys/process/windows.rs#L384-L391`](https://github.com/rust-lang/rust/blob/1.99.1/library/std/src/sys/process/windows.rs#L384-L391)).
 
-**⚠ Console flash: the real risk is `gws.exe`, not `haulmer-connect.exe`**
+**⚠ Console flash: the real risk is `gws.exe`, not `haulmer-googleworkspace-mcp.exe`**
 - "GUI processes are not attached to a console when they are created", and "by default, a console process inherits its parent's console" ([Creation of a Console](https://learn.microsoft.com/en-us/windows/console/creation-of-a-console)). "The system creates a new console when it starts a console process."
 - `SystemRunner` builds `gws` commands with no creation flags (`crates/core/src/system_runner.rs:27-40`). The parent is either the GUI app or the GUI-subsystem `mcp` process, and neither has a console. So the inference is that every `gws` call opens a new console window. **Not reproduced.**
 - [`CREATE_NO_WINDOW`](https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags) (`0x08000000`): "The process is a console application that is being run without a console window."
@@ -178,8 +178,8 @@ The app can detect the two bad macOS cases only with a string check on the path.
 **Windows check to run once** (the client health check is the real test):
 
 ```powershell
-claude mcp get haulmer-connect   # spawns the server and health-checks it
-'{"jsonrpc":"2.0","id":1,"method":"ping"}' | & "$env:LOCALAPPDATA\haulmer-connect\haulmer-connect.exe" mcp
+claude mcp get haulmer-googleworkspace-mcp   # spawns the server and health-checks it
+'{"jsonrpc":"2.0","id":1,"method":"ping"}' | & "$env:LOCALAPPDATA\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe" mcp
 # expected: {"jsonrpc":"2.0","id":1,"result":{}}
 # UNVERIFIED: whether PowerShell waits for a GUI-subsystem exe when its output is captured.
 ```
@@ -195,10 +195,10 @@ claude mcp get haulmer-connect   # spawns the server and health-checks it
 **Claude Code** ([`CC`](https://code.claude.com/docs/en/mcp), local `claude mcp add --help`, v2.1.311)
 
 ```sh
-claude mcp add --scope user haulmer-connect -- "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect" mcp
-claude mcp add --scope user haulmer-connect -- "C:\Users\ana\AppData\Local\haulmer-connect\haulmer-connect.exe" mcp
-claude mcp add-json --scope user haulmer-connect '{"type":"stdio","command":"/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect","args":["mcp"]}'
-claude mcp get haulmer-connect   # health-checks the server
+claude mcp add --scope user haulmer-googleworkspace-mcp -- "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp" mcp
+claude mcp add --scope user haulmer-googleworkspace-mcp -- "C:\Users\ana\AppData\Local\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe" mcp
+claude mcp add-json --scope user haulmer-googleworkspace-mcp '{"type":"stdio","command":"/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp","args":["mcp"]}'
+claude mcp get haulmer-googleworkspace-mcp   # health-checks the server
 claude mcp list                  # health-checks all servers
 ```
 
@@ -219,18 +219,18 @@ claude mcp list                  # health-checks all servers
 **Codex CLI** (`OAI`, local `codex mcp add --help`, v0.167.2; source `rust-v0.169.1`)
 
 ```sh
-codex mcp add haulmer-connect -- "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect" mcp
-codex mcp get haulmer-connect
+codex mcp add haulmer-googleworkspace-mcp -- "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp" mcp
+codex mcp get haulmer-googleworkspace-mcp
 codex mcp list
 ```
 
 ```toml
 # ~/.codex/config.toml
-[mcp_servers.haulmer-connect]
-command = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect"
+[mcp_servers.haulmer-googleworkspace-mcp]
+command = "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp"
 args = ["mcp"]
 # Windows: a TOML literal string (single quotes) needs no backslash escaping:
-# command = 'C:\Users\ana\AppData\Local\haulmer-connect\haulmer-connect.exe'
+# command = 'C:\Users\ana\AppData\Local\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe'
 ```
 
 - Local help syntax: `codex mcp add [OPTIONS] <NAME> (--url <URL> | -- <COMMAND>...)`.
@@ -244,9 +244,9 @@ args = ["mcp"]
   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - Open the file from Settings → Developer → **Edit Config**.
-- Shape: `{"mcpServers": {"haulmer-connect": {"command": "<exe>", "args": ["mcp"]}}}`.
+- Shape: `{"mcpServers": {"haulmer-googleworkspace-mcp": {"command": "<exe>", "args": ["mcp"]}}}`.
 - Restart: "completely quit Claude Desktop and restart it". The troubleshooting list adds that paths must be "absolute and not relative".
-- Logs: `~/Library/Logs/Claude` or `%APPDATA%\Claude\logs`. `mcp-server-haulmer-connect.log` holds the server's stderr.
+- Logs: `~/Library/Logs/Claude` or `%APPDATA%\Claude\logs`. `mcp-server-haulmer-googleworkspace-mcp.log` holds the server's stderr.
 - **Desktop Extensions (`.mcpb`):**
   - An MCPB is "a zip archive containing a local MCP server and a `manifest.json`", for "single-click installation" ([`MCPB/README.md#L11-L18`](https://github.com/modelcontextprotocol/mcpb/blob/v2.1.2/README.md#L11-L18)).
   - Install a custom one from Settings → Advanced settings → Extension Developer → **Install Extension…** ([support article](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)).
@@ -276,7 +276,7 @@ args = ["mcp"]
 
 **Cursor and VS Code** (docs only, not tested)
 - [Cursor](https://cursor.com/docs/context/mcp): `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project), with `{"mcpServers": {"<name>": {"command", "args", "env"}}}`.
-- [VS Code](https://code.visualstudio.com/docs/agents/reference/mcp-configuration): `code --add-mcp '{"name":"haulmer-connect","type":"stdio","command":"<exe>","args":["mcp"]}'` adds the server to the user profile. The format uses `"servers"`, not `"mcpServers"`. `command` "must be available on your system path or contain its full path."
+- [VS Code](https://code.visualstudio.com/docs/agents/reference/mcp-configuration): `code --add-mcp '{"name":"haulmer-googleworkspace-mcp","type":"stdio","command":"<exe>","args":["mcp"]}'` adds the server to the user profile. The format uses `"servers"`, not `"mcpServers"`. `command` "must be available on your system path or contain its full path."
 
 **Documentation drift in this repo**
 - `docs/spec.md:157` ("behind buttons in the app") and `README.md:164` ("The UI can write the configuration") are stale. Commit `9de9e8a` removed those buttons.
@@ -289,10 +289,10 @@ args = ["mcp"]
 
 | Surface | Runs a local stdio MCP? | Can a pasted prompt install it alone? | Best mechanism | Verify |
 |---|---|---|---|---|
-| Claude Code | Yes | Yes: it runs `claude mcp add`, and the person approves the Bash call | Prompt with the absolute path and the exact `--scope user` command | `claude mcp get haulmer-connect` shows Connected; `/mcp` in a new session |
-| Codex CLI / IDE | Yes | Yes: it runs `codex mcp add`. **UNVERIFIED:** whether the sandbox asks before writing `~/.codex` | Same prompt, Codex branch | `codex mcp get haulmer-connect`; `/mcp` |
+| Claude Code | Yes | Yes: it runs `claude mcp add`, and the person approves the Bash call | Prompt with the absolute path and the exact `--scope user` command | `claude mcp get haulmer-googleworkspace-mcp` shows Connected; `/mcp` in a new session |
+| Codex CLI / IDE | Yes | Yes: it runs `codex mcp add`. **UNVERIFIED:** whether the sandbox asks before writing `~/.codex` | Same prompt, Codex branch | `codex mcp get haulmer-googleworkspace-mcp`; `/mcp` |
 | ChatGPT desktop | Yes (shared Codex config) | Not by itself in a normal chat. **UNVERIFIED:** whether a Codex-mode chat in the app can run `codex mcp add` | Nothing more if `codex mcp add` already ran; else Settings → MCP servers → Add server (STDIO, `<exe>`, `mcp`) → Restart | `/mcp` in the composer |
-| Claude Desktop | Yes | No: a chat cannot edit its own config file. **UNVERIFIED:** with a filesystem extension installed | Human: Edit Config, paste the JSON, quit and restart. Later: `.mcpb` or an opt-in writer button | Connectors list; `mcp-server-haulmer-connect.log` |
+| Claude Desktop | Yes | No: a chat cannot edit its own config file. **UNVERIFIED:** with a filesystem extension installed | Human: Edit Config, paste the JSON, quit and restart. Later: `.mcpb` or an opt-in writer button | Connectors list; `mcp-server-haulmer-googleworkspace-mcp.log` |
 | claude.ai web | No | No | None for stdio. A remote connector needs a public HTTPS server | n/a |
 | chatgpt.com | No | No | None for the pilot. Secure MCP Tunnel is possible (section 6) | n/a |
 | Cursor / VS Code | Yes | Probably yes: the agent edits `~/.cursor/mcp.json` or runs `code --add-mcp` (not tested) | The same path data | MCP logs or the server list |
@@ -304,7 +304,7 @@ args = ["mcp"]
 - **B. A tray submenu per client** ("Claude Code", "Codex / ChatGPT", "Claude Desktop").
   - Pros: shorter text; each item can carry an exact snippet (shell, JSON or TOML).
   - Cons: four menu items, and the person must know which client they use.
-- **C. Copy only a ready command** (`claude mcp add --scope user haulmer-connect -- "<exe>" mcp`).
+- **C. Copy only a ready command** (`claude mcp add --scope user haulmer-googleworkspace-mcp -- "<exe>" mcp`).
   - Pros: no model in the loop.
   - Cons: only one client at a time; no conflict check; no help for GUI apps.
 
@@ -363,7 +363,7 @@ args = ["mcp"]
 
 **Sidecar (`externalBin`) or a second Cargo `[[bin]]`**
 - `externalBin` needs a `-$TARGET_TRIPLE` suffix ([sidecar docs](https://v2.tauri.app/develop/sidecar/)).
-- Simpler: a second `[[bin]]`, for example `haulmer-connect-mcp`, built with the console subsystem and without Tauri. The CLI collects every Cargo bin ([`tauri-cli rust.rs#L928-L992`](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-cli/src/interface/rust.rs#L928-L992)). The bundler copies each one next to the main binary:
+- Simpler: a second `[[bin]]`, for example `haulmer-googleworkspace-mcp-mcp`, built with the console subsystem and without Tauri. The CLI collects every Cargo bin ([`tauri-cli rust.rs#L928-L992`](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-cli/src/interface/rust.rs#L928-L992)). The bundler copies each one next to the main binary:
   - macOS: [`macos/app.rs#L166-L180`](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/macos/app.rs#L166-L180)
   - NSIS: [`nsis/mod.rs#L876-L905`](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/windows/nsis/mod.rs#L876-L905)
 - Pros: a small binary; no busy cursor; visible `--help` in terminals.
@@ -396,19 +396,19 @@ pub struct InstallPrompt {
 /// # Example
 ///
 /// ```
-/// # use haulmer_connect_core::mcp_clients::install_prompt;
-/// let installed = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// # use haulmer_googleworkspace_mcp_core::mcp_clients::install_prompt;
+/// let installed = "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// let prompt = install_prompt(installed.as_ref()).unwrap();
 /// assert!(prompt.text.contains(&format!("-- \"{installed}\" mcp")));
 /// assert!(prompt.warning.is_none());
-/// let random = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// let random = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// assert!(install_prompt(random.as_ref()).is_err());
 /// ```
 pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
     let exe = exe.to_string_lossy();
     if exe.contains("/AppTranslocation/") {
         return Err(CoreError::UnstableExe(
-            "macOS está ejecutando haulmer-connect desde una carpeta temporal. Muévela a \
+            "macOS está ejecutando haulmer-googleworkspace-mcp desde una carpeta temporal. Muévela a \
              Aplicaciones, ábrela de nuevo y vuelve a copiar el prompt."
                 .to_string(),
         ));
@@ -416,13 +416,13 @@ pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
     let mut warning = None;
     if exe.starts_with("/Volumes/") {
         warning = Some(
-            "Si abriste haulmer-connect desde la imagen de disco (.dmg), muévela a Aplicaciones \
+            "Si abriste haulmer-googleworkspace-mcp desde la imagen de disco (.dmg), muévela a Aplicaciones \
              y vuelve a copiar el prompt: esta ruta deja de existir al expulsar el disco."
                 .to_string(),
         );
     }
     let desktop_json = serde_json::to_string_pretty(&json!({
-        "mcpServers": {"haulmer-connect": {"command": exe, "args": ["mcp"]}}
+        "mcpServers": {"haulmer-googleworkspace-mcp": {"command": exe, "args": ["mcp"]}}
     }))
     .expect("a JSON value always serializes");
     let text = format!(include_str!("install_prompt.es.txt"), exe = exe, desktop_json = desktop_json);
@@ -471,32 +471,32 @@ const unlistenCopyPrompt = listen("copy-install-prompt", async () => {
 **Prompt text** (`install_prompt.es.txt`, shown with the macOS path filled in)
 
 ```text
-Configura haulmer-connect como servidor MCP local (stdio) en este equipo.
+Configura haulmer-googleworkspace-mcp como servidor MCP local (stdio) en este equipo.
 
 Ejecutable (ruta absoluta, entregada por la app):
-/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect
+/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp
 Argumento: mcp
 
 1. Antes de ejecutar nada, muéstrame el comando y pídeme confirmación.
-2. Si ya existe un servidor llamado "haulmer-connect", muéstrame su configuración y pregúntame antes de reemplazarlo. No modifiques otros servidores ni otros archivos.
+2. Si ya existe un servidor llamado "haulmer-googleworkspace-mcp", muéstrame su configuración y pregúntame antes de reemplazarlo. No modifiques otros servidores ni otros archivos.
 3. Si eres Claude Code, ejecuta:
-   claude mcp add --scope user haulmer-connect -- "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect" mcp
-   y verifica con: claude mcp get haulmer-connect (debe decir "Connected").
+   claude mcp add --scope user haulmer-googleworkspace-mcp -- "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp" mcp
+   y verifica con: claude mcp get haulmer-googleworkspace-mcp (debe decir "Connected").
 4. Si eres Codex (CLI, extensión de IDE o app de escritorio de ChatGPT), ejecuta:
-   codex mcp add haulmer-connect -- "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect" mcp
-   y verifica con: codex mcp get haulmer-connect
+   codex mcp add haulmer-googleworkspace-mcp -- "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp" mcp
+   y verifica con: codex mcp get haulmer-googleworkspace-mcp
    (la app de escritorio de ChatGPT usa la misma configuración que Codex).
 5. Ajusta las comillas a tu shell si hace falta, pero no cambies la ruta.
 6. Al final dime si debo abrir una sesión nueva o reiniciar la app, y cómo ver la herramienta "gws" con /mcp.
 
 Si no puedes ejecutar comandos en este equipo, explícame estos pasos (los nombres de los menús pueden estar traducidos):
-- Claude Desktop: Settings > Developer > Edit Config. Si el archivo está vacío, pega este bloque completo. Si ya tiene "mcpServers", agrega solo la entrada "haulmer-connect" dentro de él, sin borrar lo demás. Después cierra Claude Desktop por completo y ábrelo de nuevo.
+- Claude Desktop: Settings > Developer > Edit Config. Si el archivo está vacío, pega este bloque completo. Si ya tiene "mcpServers", agrega solo la entrada "haulmer-googleworkspace-mcp" dentro de él, sin borrar lo demás. Después cierra Claude Desktop por completo y ábrelo de nuevo.
 {desktop_json}
 - App de escritorio de ChatGPT: Settings > MCP servers > Add server. Elige STDIO. En el comando pega la ruta del Ejecutable de arriba, y en los argumentos escribe mcp. Guarda y pulsa Restart.
-- claude.ai o chatgpt.com (web): haulmer-connect no funciona ahí, porque necesita un programa local. Usa Claude Code, Codex, ChatGPT de escritorio o Claude Desktop.
+- claude.ai o chatgpt.com (web): haulmer-googleworkspace-mcp no funciona ahí, porque necesita un programa local. Usa Claude Code, Codex, ChatGPT de escritorio o Claude Desktop.
 ```
 
-On Windows the same text carries `C:\Users\<user>\AppData\Local\haulmer-connect\haulmer-connect.exe`. `serde_json` escapes the backslashes in the JSON block.
+On Windows the same text carries `C:\Users\<user>\AppData\Local\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe`. `serde_json` escapes the backslashes in the JSON block.
 
 **Step 2 (separate, Windows):** add `CREATE_NO_WINDOW` to `SystemRunner` (section 3). About 15 minutes, plus one test on a Windows machine.
 
@@ -514,4 +514,4 @@ On Windows the same text carries `C:\Users\<user>\AppData\Local\haulmer-connect\
 2. On Windows, does `navigator.clipboard.writeText` succeed from the hidden main window (WebView2) when the tray item is clicked?
 3. On Windows, does `gws` really flash a console today? A one-time test confirms the step 2 fix.
 4. Does the ChatGPT desktop app on Windows also read `~/.codex/config.toml`?
-5. Does `claude mcp add` overwrite an existing `haulmer-connect` entry, or fail?
+5. Does `claude mcp add` overwrite an existing `haulmer-googleworkspace-mcp` entry, or fail?

@@ -12,7 +12,7 @@ Spec: `docs/spec.md`. Research: `docs/research/gws-spike.md`. Build with TDD (`t
 ## What to build
 The empty, compiling project that every other ticket fills in.
 
-- Cargo workspace at the repo root: `crates/core` (lib `haulmer_connect_core`) and `src-tauri` (Tauri v2 app, depends on core). UI at the repo root: Vite + React 19 + TypeScript + Tailwind CSS v4, pnpm.
+- Cargo workspace at the repo root: `crates/core` (lib `haulmer_googleworkspace_mcp_core`) and `src-tauri` (Tauri v2 app, depends on core). UI at the repo root: Vite + React 19 + TypeScript + Tailwind CSS v4, pnpm.
 - Only the dependencies approved in the spec ("Third-party due diligence"). Add each one only in the ticket that uses it; this ticket needs serde, serde_json, thiserror, tauri, and tempfile (dev).
 - `crates/core` public contract (other tickets implement behind it, do not rename):
   - `Service { Gmail, Calendar, Chat, Meet, Drive }`, `Level { Read, Write }`, `Selection` (set of granted service levels).

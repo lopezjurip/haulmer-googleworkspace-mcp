@@ -104,8 +104,8 @@ jobs:
             cp "$bundle"/nsis/*-setup.exe "$bundle"/nsis/*-setup.exe.sig staging/
           else
             cp "$bundle"/dmg/*.dmg staging/
-            cp "$bundle"/macos/*.app.tar.gz "staging/haulmer-connect_${TAG#v}_${ARCH}.app.tar.gz"
-            cp "$bundle"/macos/*.app.tar.gz.sig "staging/haulmer-connect_${TAG#v}_${ARCH}.app.tar.gz.sig"
+            cp "$bundle"/macos/*.app.tar.gz "staging/haulmer-googleworkspace-mcp_${TAG#v}_${ARCH}.app.tar.gz"
+            cp "$bundle"/macos/*.app.tar.gz.sig "staging/haulmer-googleworkspace-mcp_${TAG#v}_${ARCH}.app.tar.gz.sig"
           fi
           ls -l staging
 
@@ -163,8 +163,8 @@ jobs:
             --arg base "$base" \
             --arg windows_file "$windows_file" \
             --arg windows_sig "$(cat "$windows_file.sig")" \
-            --arg mac_arm_sig "$(cat "haulmer-connect_${version}_aarch64.app.tar.gz.sig")" \
-            --arg mac_x64_sig "$(cat "haulmer-connect_${version}_x86_64.app.tar.gz.sig")" \
+            --arg mac_arm_sig "$(cat "haulmer-googleworkspace-mcp_${version}_aarch64.app.tar.gz.sig")" \
+            --arg mac_x64_sig "$(cat "haulmer-googleworkspace-mcp_${version}_x86_64.app.tar.gz.sig")" \
             '{
               version: $version,
               notes: $notes,
@@ -172,11 +172,11 @@ jobs:
               platforms: {
                 "darwin-aarch64": {
                   signature: $mac_arm_sig,
-                  url: "\($base)/haulmer-connect_\($version)_aarch64.app.tar.gz"
+                  url: "\($base)/haulmer-googleworkspace-mcp_\($version)_aarch64.app.tar.gz"
                 },
                 "darwin-x86_64": {
                   signature: $mac_x64_sig,
-                  url: "\($base)/haulmer-connect_\($version)_x86_64.app.tar.gz"
+                  url: "\($base)/haulmer-googleworkspace-mcp_\($version)_x86_64.app.tar.gz"
                 },
                 "windows-x86_64": {
                   signature: $windows_sig,
@@ -196,7 +196,7 @@ jobs:
           gh release create "$TAG" \
             --draft \
             --verify-tag \
-            --title "haulmer-connect $TAG" \
+            --title "haulmer-googleworkspace-mcp $TAG" \
             --generate-notes \
             ./*.exe ./*.dmg ./*.sha256 SHA256SUMS.txt \
             ./*.app.tar.gz ./*.sig latest.json

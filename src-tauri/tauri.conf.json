@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "haulmer-connect",
+  "productName": "haulmer-googleworkspace-mcp",
   "version": "0.1.0",
-  "identifier": "com.haulmer.connect",
+  "identifier": "com.haulmer.googleworkspace.mcp",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,14 +12,14 @@
   "app": {
     "windows": [
       {
-        "title": "haulmer-connect",
+        "title": "haulmer-googleworkspace-mcp",
         "width": 640,
         "height": 720,
         "visible": false
       },
       {
         "label": "skills",
-        "title": "Skills de haulmer-connect",
+        "title": "Skills de haulmer-googleworkspace-mcp",
         "url": "index.html?window=skills",
         "width": 560,
         "height": 520,
@@ -53,7 +53,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDAwMDIzQTA4N0Y0RjQwMzMKUldRelFFOS9DRG9DQUJ3Sk00L1A3UFdMSkNiK04zRnhyK3NVdUxTbTFlUTd4WW8veHhScVlFWnYK",
-      "endpoints": ["https://github.com/lopezjurip/haulmer-connect/releases/latest/download/latest.json"]
+      "endpoints": ["https://github.com/lopezjurip/haulmer-googleworkspace-mcp/releases/latest/download/latest.json"]
     }
   }
 }

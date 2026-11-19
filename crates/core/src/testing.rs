@@ -5,8 +5,8 @@
 //!
 //! ```
 //! use std::sync::Arc;
-//! use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner};
-//! use haulmer_connect_core::{Core, Paths};
+//! use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeReply, FakeRunner};
+//! use haulmer_googleworkspace_mcp_core::{Core, Paths};
 //!
 //! let home = tempfile::tempdir().unwrap();
 //! let app_data = tempfile::tempdir().unwrap();
@@ -33,7 +33,7 @@ use crate::{
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::testing::FakeReply;
+/// use haulmer_googleworkspace_mcp_core::testing::FakeReply;
 /// let failed = FakeReply::exit(2, r#"{"error":{"message":"no creds"}}"#, "");
 /// let login = FakeReply::exit(0, "", "https://accounts.google.com/o?x\n").hang_until_killed();
 /// assert!(login.hang_until_killed);
@@ -53,7 +53,7 @@ impl FakeReply {
     /// # Example
     ///
     /// ```
-    /// assert_eq!(haulmer_connect_core::testing::FakeReply::ok("{}").exit_code, 0);
+    /// assert_eq!(haulmer_googleworkspace_mcp_core::testing::FakeReply::ok("{}").exit_code, 0);
     /// ```
     pub fn ok(stdout: &str) -> Self {
         Self::exit(0, stdout, "")
@@ -64,7 +64,7 @@ impl FakeReply {
     /// # Example
     ///
     /// ```
-    /// let reply = haulmer_connect_core::testing::FakeReply::exit(3, "", "validationError");
+    /// let reply = haulmer_googleworkspace_mcp_core::testing::FakeReply::exit(3, "", "validationError");
     /// assert_eq!(reply.stderr, "validationError");
     /// ```
     pub fn exit(exit_code: i32, stdout: &str, stderr: &str) -> Self {
@@ -81,7 +81,7 @@ impl FakeReply {
     /// # Example
     ///
     /// ```
-    /// let reply = haulmer_connect_core::testing::FakeReply::ok("").hang_until_killed();
+    /// let reply = haulmer_googleworkspace_mcp_core::testing::FakeReply::ok("").hang_until_killed();
     /// assert!(reply.hang_until_killed);
     /// ```
     pub fn hang_until_killed(mut self) -> Self {
@@ -95,7 +95,7 @@ impl FakeReply {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::testing::CallKind;
+/// use haulmer_googleworkspace_mcp_core::testing::CallKind;
 /// assert_ne!(CallKind::Run, CallKind::Spawn);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,8 +111,8 @@ pub enum CallKind {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::testing::{CallKind, RecordedCall};
-/// use haulmer_connect_core::CommandSpec;
+/// use haulmer_googleworkspace_mcp_core::testing::{CallKind, RecordedCall};
+/// use haulmer_googleworkspace_mcp_core::CommandSpec;
 /// let call = RecordedCall { kind: CallKind::Run, command: CommandSpec::new("gws", &["auth", "logout"], "/run") };
 /// assert_eq!(call.command.args, ["auth", "logout"]);
 /// ```
@@ -142,8 +142,8 @@ struct Rule {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::testing::{FakeReply, FakeRunner};
-/// use haulmer_connect_core::{CommandSpec, ProcessRunner};
+/// use haulmer_googleworkspace_mcp_core::testing::{FakeReply, FakeRunner};
+/// use haulmer_googleworkspace_mcp_core::{CommandSpec, ProcessRunner};
 /// let runner = FakeRunner::new();
 /// runner.on(&["auth", "status"], FakeReply::ok("{}"));
 /// runner.run(&CommandSpec::new("gws", &["auth", "status"], "/run")).unwrap();
@@ -162,7 +162,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// assert!(haulmer_connect_core::testing::FakeRunner::new().calls().is_empty());
+    /// assert!(haulmer_googleworkspace_mcp_core::testing::FakeRunner::new().calls().is_empty());
     /// ```
     pub fn new() -> Self {
         Self::default()
@@ -173,7 +173,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::testing::{FakeReply, FakeRunner};
+    /// use haulmer_googleworkspace_mcp_core::testing::{FakeReply, FakeRunner};
     /// FakeRunner::new().on(&["auth", "logout"], FakeReply::ok(r#"{"status":"success"}"#));
     /// ```
     pub fn on(&self, args_prefix: &[&str], reply: FakeReply) -> &Self {
@@ -185,7 +185,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::testing::{FakeReply, FakeRunner};
+    /// use haulmer_googleworkspace_mcp_core::testing::{FakeReply, FakeRunner};
     /// FakeRunner::new().on_program("gws", &["--version"], FakeReply::ok("gws 0.22.5"));
     /// ```
     pub fn on_program(
@@ -206,7 +206,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::testing::{FakeReply, FakeRunner};
+    /// use haulmer_googleworkspace_mcp_core::testing::{FakeReply, FakeRunner};
     /// FakeRunner::new().on_with(&["auth", "logout"], |command| {
     ///     let _ = std::fs::remove_file(command.cwd.join("credentials.enc"));
     ///     FakeReply::ok("{}")
@@ -225,7 +225,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// assert!(haulmer_connect_core::testing::FakeRunner::new().calls().is_empty());
+    /// assert!(haulmer_googleworkspace_mcp_core::testing::FakeRunner::new().calls().is_empty());
     /// ```
     pub fn calls(&self) -> Vec<RecordedCall> {
         self.calls.lock().unwrap().clone()
@@ -236,7 +236,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// assert!(haulmer_connect_core::testing::FakeRunner::new().args().is_empty());
+    /// assert!(haulmer_googleworkspace_mcp_core::testing::FakeRunner::new().args().is_empty());
     /// ```
     pub fn args(&self) -> Vec<Vec<String>> {
         self.calls()
@@ -250,7 +250,7 @@ impl FakeRunner {
     /// # Example
     ///
     /// ```
-    /// assert_eq!(haulmer_connect_core::testing::FakeRunner::new().kill_count(), 0);
+    /// assert_eq!(haulmer_googleworkspace_mcp_core::testing::FakeRunner::new().kill_count(), 0);
     /// ```
     pub fn kill_count(&self) -> usize {
         self.kills.load(Ordering::SeqCst)
@@ -314,8 +314,8 @@ impl ProcessRunner for FakeRunner {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::testing::{FakeReply, FakeRunner};
-    /// use haulmer_connect_core::{CommandSpec, ProcessRunner};
+    /// use haulmer_googleworkspace_mcp_core::testing::{FakeReply, FakeRunner};
+    /// use haulmer_googleworkspace_mcp_core::{CommandSpec, ProcessRunner};
     /// let runner = FakeRunner::new();
     /// runner.on(&[], FakeReply::ok("hi"));
     /// assert_eq!(runner.run(&CommandSpec::new("x", &[], ".")).unwrap().stdout, "hi");
@@ -334,8 +334,8 @@ impl ProcessRunner for FakeRunner {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::testing::{FakeReply, FakeRunner};
-    /// use haulmer_connect_core::{CommandSpec, ProcessRunner};
+    /// use haulmer_googleworkspace_mcp_core::testing::{FakeReply, FakeRunner};
+    /// use haulmer_googleworkspace_mcp_core::{CommandSpec, ProcessRunner};
     /// let runner = FakeRunner::new();
     /// runner.on(&[], FakeReply::exit(1, "", ""));
     /// assert_eq!(runner.spawn(&CommandSpec::new("x", &[], ".")).unwrap().wait().unwrap(), 1);
@@ -432,7 +432,7 @@ impl RunningProcess for FakeProcess {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::testing::HttpRequest;
+/// use haulmer_googleworkspace_mcp_core::testing::HttpRequest;
 /// let request = HttpRequest::PostForm { url: "https://oauth2.googleapis.com/revoke".into(), form: vec![("token".into(), "t".into())] };
 /// assert!(matches!(request, HttpRequest::PostForm { .. }));
 /// ```
@@ -461,8 +461,8 @@ type ResponseQueue = VecDeque<Result<HttpResponse, CoreError>>;
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::testing::FakeHttp;
-/// use haulmer_connect_core::{HttpClient, HttpResponse};
+/// use haulmer_googleworkspace_mcp_core::testing::FakeHttp;
+/// use haulmer_googleworkspace_mcp_core::{HttpClient, HttpResponse};
 /// let http = FakeHttp::new();
 /// http.on("https://oauth2.googleapis.com/revoke", HttpResponse::ok(""));
 /// assert_eq!(http.post_form("https://oauth2.googleapis.com/revoke", &[("token", "t")]).unwrap().status, 200);
@@ -479,7 +479,7 @@ impl FakeHttp {
     /// # Example
     ///
     /// ```
-    /// assert!(haulmer_connect_core::testing::FakeHttp::new().requests().is_empty());
+    /// assert!(haulmer_googleworkspace_mcp_core::testing::FakeHttp::new().requests().is_empty());
     /// ```
     pub fn new() -> Self {
         Self::default()
@@ -490,7 +490,7 @@ impl FakeHttp {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{testing::FakeHttp, HttpResponse};
+    /// use haulmer_googleworkspace_mcp_core::{testing::FakeHttp, HttpResponse};
     /// FakeHttp::new().on("https://example.com/gws.tar.gz", HttpResponse::ok(vec![0u8; 4]));
     /// ```
     pub fn on(&self, url: &str, response: HttpResponse) -> &Self {
@@ -502,7 +502,7 @@ impl FakeHttp {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{testing::FakeHttp, CoreError};
+    /// use haulmer_googleworkspace_mcp_core::{testing::FakeHttp, CoreError};
     /// FakeHttp::new().on_error("https://oauth2.googleapis.com/revoke", CoreError::Http("offline".into()));
     /// ```
     pub fn on_error(&self, url: &str, error: CoreError) -> &Self {
@@ -514,7 +514,7 @@ impl FakeHttp {
     /// # Example
     ///
     /// ```
-    /// assert!(haulmer_connect_core::testing::FakeHttp::new().requests().is_empty());
+    /// assert!(haulmer_googleworkspace_mcp_core::testing::FakeHttp::new().requests().is_empty());
     /// ```
     pub fn requests(&self) -> Vec<HttpRequest> {
         self.requests.lock().unwrap().clone()
@@ -556,7 +556,7 @@ impl HttpClient for FakeHttp {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{testing::FakeHttp, HttpClient};
+    /// use haulmer_googleworkspace_mcp_core::{testing::FakeHttp, HttpClient};
     /// assert!(FakeHttp::new().get("https://unknown").is_err());
     /// ```
     fn get(&self, url: &str) -> Result<HttpResponse, CoreError> {
@@ -577,7 +577,7 @@ impl HttpClient for FakeHttp {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{testing::FakeHttp, HttpClient};
+    /// use haulmer_googleworkspace_mcp_core::{testing::FakeHttp, HttpClient};
     /// assert!(FakeHttp::new().post_form("https://unknown", &[]).is_err());
     /// ```
     fn post_form(&self, url: &str, form: &[(&str, &str)]) -> Result<HttpResponse, CoreError> {

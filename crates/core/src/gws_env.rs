@@ -5,14 +5,14 @@ use std::path::Path;
 use crate::oauth_client::{CLIENT_ID, CLIENT_SECRET};
 use crate::{CommandSpec, Core, CoreError};
 
-/// Ownership marker written into the config folder after a successful haulmer-connect login.
+/// Ownership marker written into the config folder after a successful haulmer-googleworkspace-mcp login.
 ///
 /// # Example
 ///
 /// ```
-/// assert_eq!(haulmer_connect_core::gws_env::MARKER_FILE, "haulmer-connect.json");
+/// assert_eq!(haulmer_googleworkspace_mcp_core::gws_env::MARKER_FILE, "haulmer-googleworkspace-mcp.json");
 /// ```
-pub const MARKER_FILE: &str = "haulmer-connect.json";
+pub const MARKER_FILE: &str = "haulmer-googleworkspace-mcp.json";
 
 /// Variables removed from every gws child: they would bypass the config folder's credentials
 /// (gws falls back to gcloud ADC, a credentials file or a raw token).
@@ -30,7 +30,7 @@ impl Core {
     /// # Example
     ///
     /// ```
-    /// # use haulmer_connect_core::{Core, Paths};
+    /// # use haulmer_googleworkspace_mcp_core::{Core, Paths};
     /// # let app_data = tempfile::tempdir().unwrap();
     /// # let core = Core::system(Paths { home: "/h".into(), app_data: app_data.path().into() });
     /// let command = core.gws_command("gws".as_ref(), &["auth", "status"]).unwrap();
@@ -68,7 +68,7 @@ impl Core {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::gws_env::credentials_exist;
+/// use haulmer_googleworkspace_mcp_core::gws_env::credentials_exist;
 /// assert!(!credentials_exist("/nonexistent".as_ref()));
 /// ```
 pub fn credentials_exist(config_dir: &Path) -> bool {
@@ -77,12 +77,12 @@ pub fn credentials_exist(config_dir: &Path) -> bool {
         .any(|name| config_dir.join(name).is_file())
 }
 
-/// Whether `config_dir` holds credentials not created by haulmer-connect (no marker).
+/// Whether `config_dir` holds credentials not created by haulmer-googleworkspace-mcp (no marker).
 ///
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::gws_env::foreign_credentials;
+/// use haulmer_googleworkspace_mcp_core::gws_env::foreign_credentials;
 /// assert!(!foreign_credentials("/nonexistent".as_ref()));
 /// ```
 pub fn foreign_credentials(config_dir: &Path) -> bool {
@@ -95,14 +95,14 @@ pub fn foreign_credentials(config_dir: &Path) -> bool {
 ///
 /// ```
 /// let dir = tempfile::tempdir().unwrap();
-/// haulmer_connect_core::gws_env::write_marker(dir.path()).unwrap();
-/// assert!(dir.path().join(haulmer_connect_core::gws_env::MARKER_FILE).is_file());
+/// haulmer_googleworkspace_mcp_core::gws_env::write_marker(dir.path()).unwrap();
+/// assert!(dir.path().join(haulmer_googleworkspace_mcp_core::gws_env::MARKER_FILE).is_file());
 /// ```
 pub fn write_marker(config_dir: &Path) -> Result<(), CoreError> {
     std::fs::create_dir_all(config_dir)?;
     std::fs::write(
         config_dir.join(MARKER_FILE),
-        "{\"created_by\":\"haulmer-connect\"}\n",
+        "{\"created_by\":\"haulmer-googleworkspace-mcp\"}\n",
     )?;
     Ok(())
 }
@@ -113,7 +113,7 @@ pub fn write_marker(config_dir: &Path) -> Result<(), CoreError> {
 ///
 /// ```
 /// let dir = tempfile::tempdir().unwrap();
-/// haulmer_connect_core::gws_env::remove_marker(dir.path()).unwrap();
+/// haulmer_googleworkspace_mcp_core::gws_env::remove_marker(dir.path()).unwrap();
 /// ```
 pub fn remove_marker(config_dir: &Path) -> Result<(), CoreError> {
     match std::fs::remove_file(config_dir.join(MARKER_FILE)) {

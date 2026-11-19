@@ -244,7 +244,7 @@ function SkillsWindow() {
     setNotice(null);
     setDownloadNotice(null);
     const path = await save({
-      defaultPath: "haulmer-connect-skills.zip",
+      defaultPath: "haulmer-googleworkspace-mcp-skills.zip",
       filters: [{ name: "ZIP", extensions: ["zip"] }],
     });
     if (path === null) {
@@ -286,7 +286,7 @@ function SkillsWindow() {
       <div className="mx-auto max-w-xl space-y-5">
         <header>
           <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-            haulmer-connect
+            haulmer-googleworkspace-mcp
           </p>
           <h1 className="text-2xl font-semibold">Skills</h1>
         </header>
@@ -481,7 +481,7 @@ function InstallWindow() {
       <div className="mx-auto max-w-xl space-y-5">
         <header>
           <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-            haulmer-connect
+            haulmer-googleworkspace-mcp
           </p>
           <h1 className="text-2xl font-semibold">Conectar un agente</h1>
         </header>
@@ -589,7 +589,7 @@ function InstallWindow() {
 }
 
 /**
- * The settings window of haulmer-connect: account, services, Save, Revoke all and the Advanced
+ * The settings window of haulmer-googleworkspace-mcp: account, services, Save, Revoke all and the Advanced
  * settings. It also routes the skills and install windows to their own components.
  *
  * @example
@@ -948,7 +948,7 @@ export default function App() {
         )}
 
         <header>
-          <h1 className="text-xl font-semibold">haulmer-connect</h1>
+          <h1 className="text-xl font-semibold">haulmer-googleworkspace-mcp</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
             Conecta tus agentes de IA a Google Workspace.
           </p>

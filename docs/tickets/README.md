@@ -1,4 +1,4 @@
-# Tickets — haulmer-connect pilot
+# Tickets — haulmer-googleworkspace-mcp pilot
 
 Local tracker. A ticket is closed by setting `status: done` in its front matter and merging its branch into the integration branch `pilot`.
 

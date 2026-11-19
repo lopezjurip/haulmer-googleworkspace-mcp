@@ -5,7 +5,7 @@ members = ["crates/core", "src-tauri"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-repository = "https://github.com/haulmer/haulmer-connect"
+repository = "https://github.com/haulmer/haulmer-googleworkspace-mcp"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

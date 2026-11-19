@@ -93,7 +93,7 @@ export type BusinessSelection = BusinessAccess[];
 
 /**
  * What the `install_prompt` command returns: the text a person pastes into an agent so that it
- * connects itself to haulmer-connect, plus an optional warning to show above the steps.
+ * connects itself to haulmer-googleworkspace-mcp, plus an optional warning to show above the steps.
  */
 export type InstallPrompt = { text: string; warning: string | null };
 

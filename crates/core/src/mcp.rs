@@ -1,4 +1,4 @@
-//! MCP server: exposes three tools, `gws`, `status` and `open_haulmer_connect`, over the MCP stdio
+//! MCP server: exposes three tools, `gws`, `status` and `open_haulmer_googleworkspace_mcp`, over the MCP stdio
 //! transport (newline-delimited JSON-RPC 2.0). Spec: `docs/spec.md` "MCP".
 
 use std::io::{BufRead, Write};
@@ -11,17 +11,17 @@ use crate::{Core, CoreError, Level, Service, Status, scopes};
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// Text of the `gws` tool, shown to the model.
-const TOOL_DESCRIPTION: &str = "Run a Google Workspace CLI (gws) command on the user's Google account and return its JSON output. Example args: [\"gmail\",\"+triage\"], [\"calendar\",\"+agenda\"]. Discover methods with [\"schema\",\"gmail.users.messages.list\"]. If a call fails, follow the steps in the error message (it may suggest open_haulmer_connect).";
+const TOOL_DESCRIPTION: &str = "Run a Google Workspace CLI (gws) command on the user's Google account and return its JSON output. Example args: [\"gmail\",\"+triage\"], [\"calendar\",\"+agenda\"]. Discover methods with [\"schema\",\"gmail.users.messages.list\"]. If a call fails, follow the steps in the error message (it may suggest open_haulmer_googleworkspace_mcp).";
 
 /// Text of the `status` tool, shown to the model.
-const STATUS_TOOL_DESCRIPTION: &str = "Show which Google account is connected to haulmer-connect, whether its session is valid, and which Google services haulmer-connect may use, at the Read or Write level. Read-only; takes no arguments. Call it first, before `gws`, to know what is allowed and to avoid commands that would fail.";
+const STATUS_TOOL_DESCRIPTION: &str = "Show which Google account is connected to haulmer-googleworkspace-mcp, whether its session is valid, and which Google services haulmer-googleworkspace-mcp may use, at the Read or Write level. Read-only; takes no arguments. Call it first, before `gws`, to know what is allowed and to avoid commands that would fail.";
 
-/// Text of the `open_haulmer_connect` tool, shown to the model.
-const OPEN_TOOL_DESCRIPTION: &str = "Open the haulmer-connect desktop app on its settings window, so that the person can connect their Google account or turn on permissions. Takes no arguments. Use it when the person has to act in haulmer-connect, then tell them what to do there.";
+/// Text of the `open_haulmer_googleworkspace_mcp` tool, shown to the model.
+const OPEN_TOOL_DESCRIPTION: &str = "Open the haulmer-googleworkspace-mcp desktop app on its settings window, so that the person can connect their Google account or turn on permissions. Takes no arguments. Use it when the person has to act in haulmer-googleworkspace-mcp, then tell them what to do there.";
 
 /// Where the person finds the settings window, in Spanish. It continues "que ..." (a verb in
 /// the subjunctive), so every message that sends the person to the settings reads the same.
-const SETTINGS_PATH: &str = "abra haulmer-connect (su ícono en la barra de menú de macOS, o en la bandeja del sistema de Windows, junto al reloj) › \"Abrir configuración\"";
+const SETTINGS_PATH: &str = "abra haulmer-googleworkspace-mcp (su ícono en la barra de menú de macOS, o en la bandeja del sistema de Windows, junto al reloj) › \"Abrir configuración\"";
 
 /// A JSON-RPC error: code and message.
 type RpcError = (i32, &'static str);
@@ -29,13 +29,13 @@ type RpcError = (i32, &'static str);
 /// Serves MCP over `input`/`output` until `input` ends. One JSON-RPC message per line.
 /// Requests get one reply line; notifications (no `id`) get none. The `gws` tool runs through
 /// the core's runner and refuses `auth` commands (they could export the refresh token); when
-/// gws fails, it replies with what the person has to fix. The `open_haulmer_connect` tool
+/// gws fails, it replies with what the person has to fix. The `open_haulmer_googleworkspace_mcp` tool
 /// calls `open_app`, which the caller provides (the desktop app opens its settings window).
 ///
 /// # Example
 ///
 /// ```
-/// # use haulmer_connect_core::{Core, Paths, mcp};
+/// # use haulmer_googleworkspace_mcp_core::{Core, Paths, mcp};
 /// # let dir = tempfile::tempdir().unwrap();
 /// # let core = Core::system(Paths { home: dir.path().into(), app_data: dir.path().into() });
 /// let input = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n";
@@ -91,7 +91,7 @@ fn handle(
             Ok(json!({
                 "protocolVersion": protocol_version,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "haulmer-connect", "version": env!("CARGO_PKG_VERSION")},
+                "serverInfo": {"name": "haulmer-googleworkspace-mcp", "version": env!("CARGO_PKG_VERSION")},
             }))
         }
         "ping" => Ok(json!({})),
@@ -106,7 +106,7 @@ fn handle(
                 },
             },
             {
-                "name": "open_haulmer_connect",
+                "name": "open_haulmer_googleworkspace_mcp",
                 "description": OPEN_TOOL_DESCRIPTION,
                 "inputSchema": {"type": "object", "properties": {}},
             },
@@ -126,7 +126,7 @@ fn handle(
 }
 
 /// Runs a tool: `params` is `{name: "gws", arguments: {args: [...]}}`,
-/// `{name: "status", arguments: {}}` or `{name: "open_haulmer_connect", arguments: {}}`.
+/// `{name: "status", arguments: {}}` or `{name: "open_haulmer_googleworkspace_mcp", arguments: {}}`.
 /// Tool failures are results with `isError: true`; only a bad call is a JSON-RPC error.
 ///
 /// # Example
@@ -141,11 +141,11 @@ fn call_tool(
     open_app: &dyn Fn() -> Result<(), CoreError>,
     params: &Value,
 ) -> Result<Value, RpcError> {
-    if params["name"] == "open_haulmer_connect" {
+    if params["name"] == "open_haulmer_googleworkspace_mcp" {
         return match open_app() {
             Ok(()) => Ok(tool_result(
-                "Pedí abrir haulmer-connect en su configuración. Si no aparece, pídele a la \
-                 persona que lo abra desde el ícono de haulmer-connect (barra de menús en macOS, \
+                "Pedí abrir haulmer-googleworkspace-mcp en su configuración. Si no aparece, pídele a la \
+                 persona que lo abra desde el ícono de haulmer-googleworkspace-mcp (barra de menús en macOS, \
                  bandeja del sistema en Windows) › \"Abrir configuración\".",
                 false,
             )),
@@ -169,7 +169,7 @@ fn call_tool(
     };
     if args.first() == Some(&"auth") {
         return Ok(tool_result(
-            "Los comandos auth están desactivados en MCP. Conecta la cuenta desde la app haulmer-connect.",
+            "Los comandos auth están desactivados en MCP. Conecta la cuenta desde la app haulmer-googleworkspace-mcp.",
             true,
         ));
     }
@@ -301,7 +301,7 @@ fn status_text(status: &Status) -> String {
     };
     lines.push(format!(
         "Para activar más servicios: pídele a la persona que {SETTINGS_PATH}, active el servicio \
-         y pulse \"{next_button}\". También puedes llamar a open_haulmer_connect."
+         y pulse \"{next_button}\". También puedes llamar a open_haulmer_googleworkspace_mcp."
     ));
     lines.join("\n")
 }
@@ -391,13 +391,13 @@ fn gws_missing_text() -> String {
 ///
 /// ```ignore
 /// let text = fix_in_settings("La sesión de Google expiró.", "pulse \"Guardar\"");
-/// assert!(text.contains("open_haulmer_connect"));
+/// assert!(text.contains("open_haulmer_googleworkspace_mcp"));
 /// ```
 fn fix_in_settings(problem: &str, action: &str) -> String {
     format!(
         "{problem} Haz una de estas dos cosas:\n\
          1. Pídele a la persona que {SETTINGS_PATH}, y que {action}.\n\
-         2. O llama a la herramienta open_haulmer_connect para abrir esa ventana por ella."
+         2. O llama a la herramienta open_haulmer_googleworkspace_mcp para abrir esa ventana por ella."
     )
 }
 

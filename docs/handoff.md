@@ -1,5 +1,5 @@
 ---
-title: haulmer-connect — handoff
+title: haulmer-googleworkspace-mcp — handoff
 date: 2026-11-16
 next: implement the pilot from docs/spec.md
 ---
@@ -10,8 +10,8 @@ The spec is complete: read `docs/spec.md` first. This file only adds what the sp
 
 ## State
 
-- Local repo `~/repositories/haulmer-connect` exists with `docs/` only. No code yet. No remote: the owner creates `github.com/haulmer/haulmer-connect` (public) later.
-- The Google Cloud project `haulmer-connect`, the Internal Auth Platform config, the Desktop OAuth client, the 6 APIs and the Chat app **exist** (2026-11-16). Second project owner: pending.
+- Local repo `~/repositories/haulmer-googleworkspace-mcp` exists with `docs/` only. No code yet. No remote: the owner creates `github.com/haulmer/haulmer-googleworkspace-mcp` (public) later.
+- The Google Cloud project `haulmer-googleworkspace-mcp` (project ID `haulmer-connect`), the Internal Auth Platform config, the Desktop OAuth client, the 6 APIs and the Chat app **exist** (2026-11-16). Second project owner: pending.
 - The test seam is **confirmed**: core API + fake process runner + fake HTTP client + real filesystem in a temp dir.
 - Spike done: `docs/research/gws-spike.md`; answers merged into the spec. Dependencies approved (spec, "Third-party due diligence").
 - Tickets: `docs/tickets/`. Integration branch: `pilot`.

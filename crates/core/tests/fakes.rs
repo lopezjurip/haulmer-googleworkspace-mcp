@@ -3,8 +3,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use haulmer_connect_core::testing::{CallKind, FakeHttp, FakeReply, FakeRunner, HttpRequest};
-use haulmer_connect_core::{
+use haulmer_googleworkspace_mcp_core::testing::{
+    CallKind, FakeHttp, FakeReply, FakeRunner, HttpRequest,
+};
+use haulmer_googleworkspace_mcp_core::{
     CommandSpec, CoreError, HttpClient, HttpResponse, KILLED_EXIT_CODE, OutputLine, ProcessRunner,
 };
 

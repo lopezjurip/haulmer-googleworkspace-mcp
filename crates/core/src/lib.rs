@@ -1,4 +1,4 @@
-//! haulmer-connect core: maps the person's selection to a `gws` login, reports status,
+//! haulmer-googleworkspace-mcp core: maps the person's selection to a `gws` login, reports status,
 //! revokes access, exports agent skills and writes the Install prompt.
 //!
 //! The whole behaviour sits behind [`Core`], built from injected [`Paths`] and two ports,
@@ -16,7 +16,7 @@
 //! | [`revoke`] | T06 | `Core::revoke_all` |
 //! | [`save`] | T07 | `Core::save`, `Core::cancel_login` |
 //! | [`skills`] | T08 | `Core::export_skills_zip`, `skills::skills_add_command` |
-//! | [`mcp`] | MCP | `mcp::serve`: the `gws`, `status` and `open_haulmer_connect` tools over MCP stdio |
+//! | [`mcp`] | MCP | `mcp::serve`: the `gws`, `status` and `open_haulmer_googleworkspace_mcp` tools over MCP stdio |
 //! | [`mcp_clients`] | MCP | `mcp_clients::install_prompt`, the Install prompt for an Agent, and `check_exe_path` |
 //! | [`mcp_extension`] | MCP | `mcp_extension::mcp_extension`, the `.mcpb` MCP extension for Claude Desktop |
 //!
@@ -27,7 +27,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use haulmer_connect_core::{Core, Paths};
+//! use haulmer_googleworkspace_mcp_core::{Core, Paths};
 //! let core = Core::system(Paths { home: "/home/ana".into(), app_data: "/home/ana/.haulmer".into() });
 //! let status = core.status();
 //! ```
@@ -75,7 +75,7 @@ pub use types::{
 ///
 /// ```
 /// use std::sync::Arc;
-/// use haulmer_connect_core::{Core, Paths, SystemHttp, SystemRunner};
+/// use haulmer_googleworkspace_mcp_core::{Core, Paths, SystemHttp, SystemRunner};
 /// let paths = Paths { home: "/home/ana".into(), app_data: "/tmp/haulmer".into() };
 /// let core = Core::new(paths, Arc::new(SystemRunner), Arc::new(SystemHttp::new()));
 /// assert_eq!(core.paths().home, std::path::PathBuf::from("/home/ana"));
@@ -104,7 +104,7 @@ impl Core {
     ///
     /// ```
     /// use std::sync::Arc;
-    /// use haulmer_connect_core::{Core, Paths, SystemHttp, SystemRunner};
+    /// use haulmer_googleworkspace_mcp_core::{Core, Paths, SystemHttp, SystemRunner};
     /// let paths = Paths { home: "/home/ana".into(), app_data: "/tmp/haulmer".into() };
     /// let core = Core::new(paths, Arc::new(SystemRunner), Arc::new(SystemHttp::new()));
     /// ```
@@ -124,7 +124,7 @@ impl Core {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{Core, Paths};
+    /// use haulmer_googleworkspace_mcp_core::{Core, Paths};
     /// let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() })
     ///     .with_skills_sha256("0000000000000000000000000000000000000000000000000000000000000000");
     /// ```
@@ -138,7 +138,7 @@ impl Core {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{Core, Paths};
+    /// use haulmer_googleworkspace_mcp_core::{Core, Paths};
     /// let core = Core::system(Paths { home: "/home/ana".into(), app_data: "/tmp/haulmer".into() });
     /// ```
     pub fn system(paths: Paths) -> Self {
@@ -150,7 +150,7 @@ impl Core {
     /// # Example
     ///
     /// ```
-    /// use haulmer_connect_core::{Core, Paths};
+    /// use haulmer_googleworkspace_mcp_core::{Core, Paths};
     /// let paths = Paths { home: "/home/ana".into(), app_data: "/tmp/haulmer".into() };
     /// assert_eq!(Core::system(paths.clone()).paths(), &paths);
     /// ```

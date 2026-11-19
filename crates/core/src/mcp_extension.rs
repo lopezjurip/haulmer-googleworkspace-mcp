@@ -1,5 +1,5 @@
 //! The MCP extension (`.mcpb`): the file Claude Desktop installs to register
-//! `haulmer-connect mcp` as an MCP server without editing any JSON by hand.
+//! `haulmer-googleworkspace-mcp mcp` as an MCP server without editing any JSON by hand.
 //!
 //! The bundle is thin. It does not ship the server binary: its manifest points at the installed
 //! app, which `src-tauri` passes in as `exe`.
@@ -20,7 +20,7 @@ const LONG_DESCRIPTION: &str = include_str!("mcp_extension_long_description.es.m
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::mcp_extension::McpExtension;
+/// use haulmer_googleworkspace_mcp_core::mcp_extension::McpExtension;
 /// let extension = McpExtension { bytes: vec![0x50, 0x4b], warning: None };
 /// assert_eq!(extension.bytes.len(), 2);
 /// ```
@@ -46,8 +46,8 @@ pub struct McpExtension {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::mcp_extension::mcp_extension;
-/// let exe = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// use haulmer_googleworkspace_mcp_core::mcp_extension::mcp_extension;
+/// let exe = "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// let extension = mcp_extension(exe.as_ref(), b"png bytes").unwrap();
 /// assert!(extension.bytes.starts_with(b"PK"));
 /// assert!(extension.warning.is_none());
@@ -66,14 +66,14 @@ pub fn mcp_extension(exe: &Path, icon_png: &[u8]) -> Result<McpExtension, CoreEr
 
     let manifest = serde_json::to_string_pretty(&json!({
         "manifest_version": "0.3",
-        "name": "haulmer-connect",
-        "display_name": "haulmer-connect",
+        "name": "haulmer-googleworkspace-mcp",
+        "display_name": "haulmer-googleworkspace-mcp",
         "version": env!("CARGO_PKG_VERSION"),
         "description": "Gmail, Google Calendar, Drive, Google Chat, Sheets, Forms y más de tu cuenta @haulmer.com, desde Claude.",
         "long_description": LONG_DESCRIPTION,
         "author": {"name": "Haulmer"},
-        "homepage": "https://github.com/lopezjurip/haulmer-connect",
-        "support": "https://github.com/lopezjurip/haulmer-connect/issues",
+        "homepage": "https://github.com/lopezjurip/haulmer-googleworkspace-mcp",
+        "support": "https://github.com/lopezjurip/haulmer-googleworkspace-mcp/issues",
         "icon": "icon.png",
         "keywords": [
             "google workspace", "gmail", "correo", "email", "google calendar", "calendario",
@@ -97,8 +97,8 @@ pub fn mcp_extension(exe: &Path, icon_png: &[u8]) -> Result<McpExtension, CoreEr
                 "description": "Muestra la cuenta conectada y qué servicios puede usar, con Lectura o Escritura.",
             },
             {
-                "name": "open_haulmer_connect",
-                "description": "Abre la configuración de haulmer-connect para conectar la cuenta o cambiar permisos.",
+                "name": "open_haulmer_googleworkspace_mcp",
+                "description": "Abre la configuración de haulmer-googleworkspace-mcp para conectar la cuenta o cambiar permisos.",
             },
         ],
         "compatibility": {"platforms": ["darwin", "win32"]},
@@ -111,7 +111,7 @@ pub fn mcp_extension(exe: &Path, icon_png: &[u8]) -> Result<McpExtension, CoreEr
         ("icon.png", icon_png),
         (
             "README.md",
-            "Esta extensión no incluye el servidor: usa la app haulmer-connect instalada en tu equipo.\n"
+            "Esta extensión no incluye el servidor: usa la app haulmer-googleworkspace-mcp instalada en tu equipo.\n"
                 .as_bytes(),
         ),
     ] {

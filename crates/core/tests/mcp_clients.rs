@@ -1,10 +1,12 @@
 //! `mcp_clients::install_prompt`: the Spanish text a person pastes into an Agent.
 
-use haulmer_connect_core::CoreError;
-use haulmer_connect_core::mcp_clients::{check_exe_path, install_prompt};
+use haulmer_googleworkspace_mcp_core::CoreError;
+use haulmer_googleworkspace_mcp_core::mcp_clients::{check_exe_path, install_prompt};
 
-const MAC_EXE: &str = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
-const WINDOWS_EXE: &str = r"C:\Users\ana\AppData\Local\haulmer-connect\haulmer-connect.exe";
+const MAC_EXE: &str =
+    "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
+const WINDOWS_EXE: &str =
+    r"C:\Users\ana\AppData\Local\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe";
 
 #[test]
 fn an_installed_mac_app_gets_both_commands_and_no_warning() {
@@ -12,13 +14,21 @@ fn an_installed_mac_app_gets_both_commands_and_no_warning() {
 
     assert_eq!(prompt.warning, None);
     assert!(prompt.text.contains(&format!(
-        "claude mcp add --scope user haulmer-connect -- \"{MAC_EXE}\" mcp"
+        "claude mcp add --scope user haulmer-googleworkspace-mcp -- \"{MAC_EXE}\" mcp"
     )));
     assert!(prompt.text.contains(&format!(
-        "codex mcp add haulmer-connect -- \"{MAC_EXE}\" mcp"
+        "codex mcp add haulmer-googleworkspace-mcp -- \"{MAC_EXE}\" mcp"
     )));
-    assert!(prompt.text.contains("claude mcp get haulmer-connect"));
-    assert!(prompt.text.contains("codex mcp get haulmer-connect"));
+    assert!(
+        prompt
+            .text
+            .contains("claude mcp get haulmer-googleworkspace-mcp")
+    );
+    assert!(
+        prompt
+            .text
+            .contains("codex mcp get haulmer-googleworkspace-mcp")
+    );
 }
 
 #[test]
@@ -35,7 +45,7 @@ fn the_skills_command_pins_the_tag_and_lists_the_service_skills() {
 
 #[test]
 fn a_translocated_path_is_an_error() {
-    let exe = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+    let exe = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 
     let error = install_prompt(exe.as_ref()).unwrap_err();
 
@@ -45,7 +55,7 @@ fn a_translocated_path_is_an_error() {
 
 #[test]
 fn a_path_on_a_mounted_volume_warns_about_the_disk_image() {
-    let exe = "/Volumes/haulmer-connect/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+    let exe = "/Volumes/haulmer-googleworkspace-mcp/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 
     let prompt = install_prompt(exe.as_ref()).unwrap();
 
@@ -60,7 +70,7 @@ fn a_windows_path_is_raw_in_the_commands() {
     let prompt = install_prompt(WINDOWS_EXE.as_ref()).unwrap();
 
     assert!(prompt.text.contains(&format!(
-        "codex mcp add haulmer-connect -- \"{WINDOWS_EXE}\" mcp"
+        "codex mcp add haulmer-googleworkspace-mcp -- \"{WINDOWS_EXE}\" mcp"
     )));
 }
 
@@ -69,7 +79,7 @@ fn claude_desktop_is_pointed_at_the_mcp_extension_instead_of_a_json_block() {
     let prompt = install_prompt(MAC_EXE.as_ref()).unwrap();
 
     assert!(prompt.text.contains(
-        "- Claude Desktop: en haulmer-connect abre \"Conectar un agente…\" y pulsa \"Instalar MCP\"."
+        "- Claude Desktop: en haulmer-googleworkspace-mcp abre \"Conectar un agente…\" y pulsa \"Instalar MCP\"."
     ));
     assert!(!prompt.text.contains("Edit Config"), "{}", prompt.text);
     assert!(!prompt.text.contains("mcpServers"), "{}", prompt.text);
@@ -84,7 +94,7 @@ fn check_exe_path_accepts_an_installed_path_without_a_warning() {
 
 #[test]
 fn check_exe_path_rejects_a_translocated_path() {
-    let exe = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+    let exe = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 
     let error = check_exe_path(exe.as_ref()).unwrap_err();
 
@@ -93,7 +103,7 @@ fn check_exe_path_rejects_a_translocated_path() {
 
 #[test]
 fn check_exe_path_warns_about_a_mounted_volume() {
-    let exe = "/Volumes/haulmer-connect/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+    let exe = "/Volumes/haulmer-googleworkspace-mcp/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 
     let warning = check_exe_path(exe.as_ref()).unwrap().unwrap();
 
@@ -106,7 +116,7 @@ fn the_text_carries_the_rules_the_fallbacks_and_the_web_chat_warning() {
 
     for needle in [
         "pídeme confirmación antes de ejecutarlo, a menos que te diga lo contrario",
-        "ya existe un servidor llamado \"haulmer-connect\"",
+        "ya existe un servidor llamado \"haulmer-googleworkspace-mcp\"",
         "No modifiques otros servidores ni otros archivos",
         "Instalar MCP",
         "Settings > MCP servers > Add server",

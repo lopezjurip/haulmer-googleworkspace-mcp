@@ -17,7 +17,7 @@ use crate::{
 /// # Example
 ///
 /// ```no_run
-/// use haulmer_connect_core::{CommandSpec, ProcessRunner, SystemRunner};
+/// use haulmer_googleworkspace_mcp_core::{CommandSpec, ProcessRunner, SystemRunner};
 /// let output = SystemRunner.run(&CommandSpec::new("gws", &["--version"], ".")).unwrap();
 /// ```
 #[derive(Debug, Default, Clone, Copy)]
@@ -50,7 +50,7 @@ impl ProcessRunner for SystemRunner {
     /// # Example
     ///
     /// ```no_run
-    /// use haulmer_connect_core::{CommandSpec, ProcessRunner, SystemRunner};
+    /// use haulmer_googleworkspace_mcp_core::{CommandSpec, ProcessRunner, SystemRunner};
     /// let output = SystemRunner.run(&CommandSpec::new("gws", &["auth", "status"], ".")).unwrap();
     /// ```
     fn run(&self, command: &CommandSpec) -> Result<ProcessOutput, CoreError> {
@@ -69,7 +69,7 @@ impl ProcessRunner for SystemRunner {
     /// # Example
     ///
     /// ```no_run
-    /// use haulmer_connect_core::{CommandSpec, ProcessRunner, SystemRunner};
+    /// use haulmer_googleworkspace_mcp_core::{CommandSpec, ProcessRunner, SystemRunner};
     /// let process = SystemRunner.spawn(&CommandSpec::new("gws", &["auth", "login"], ".")).unwrap();
     /// ```
     fn spawn(&self, command: &CommandSpec) -> Result<Box<dyn RunningProcess>, CoreError> {

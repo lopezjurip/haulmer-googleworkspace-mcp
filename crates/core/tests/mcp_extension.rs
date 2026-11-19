@@ -2,12 +2,14 @@
 
 use std::io::{Cursor, Read};
 
-use haulmer_connect_core::CoreError;
-use haulmer_connect_core::mcp_extension::mcp_extension;
+use haulmer_googleworkspace_mcp_core::CoreError;
+use haulmer_googleworkspace_mcp_core::mcp_extension::mcp_extension;
 use serde_json::{Value, json};
 
-const MAC_EXE: &str = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
-const WINDOWS_EXE: &str = r"C:\Users\ana\AppData\Local\haulmer-connect\haulmer-connect.exe";
+const MAC_EXE: &str =
+    "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
+const WINDOWS_EXE: &str =
+    r"C:\Users\ana\AppData\Local\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp.exe";
 const ICON: &[u8] = b"\x89PNG fake icon bytes";
 
 /// The names and the bytes of each entry of a ZIP.
@@ -61,7 +63,7 @@ fn the_manifest_points_at_the_installed_app() {
     let manifest = manifest(MAC_EXE);
 
     assert_eq!(manifest["manifest_version"], "0.3");
-    assert_eq!(manifest["name"], "haulmer-connect");
+    assert_eq!(manifest["name"], "haulmer-googleworkspace-mcp");
     assert_eq!(manifest["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(manifest["icon"], "icon.png");
     assert_eq!(manifest["server"]["type"], "binary");
@@ -85,7 +87,7 @@ fn the_manifest_lists_the_three_tools_in_spanish() {
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["gws", "status", "open_haulmer_connect"]);
+    assert_eq!(names, ["gws", "status", "open_haulmer_googleworkspace_mcp"]);
     assert!(
         manifest["tools"][1]["description"]
             .as_str()
@@ -114,7 +116,7 @@ fn a_windows_exe_suffix_is_stripped_from_the_command() {
 
     assert_eq!(
         manifest["server"]["mcp_config"]["command"],
-        r"C:\Users\ana\AppData\Local\haulmer-connect\haulmer-connect"
+        r"C:\Users\ana\AppData\Local\haulmer-googleworkspace-mcp\haulmer-googleworkspace-mcp"
     );
 }
 
@@ -130,7 +132,7 @@ fn the_exe_suffix_is_stripped_in_any_case() {
 
 #[test]
 fn a_translocated_path_is_an_error() {
-    let exe = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+    let exe = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 
     let result = mcp_extension(exe.as_ref(), ICON);
 
@@ -139,7 +141,7 @@ fn a_translocated_path_is_an_error() {
 
 #[test]
 fn a_path_on_a_mounted_volume_builds_the_extension_with_a_warning() {
-    let exe = "/Volumes/haulmer-connect/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+    let exe = "/Volumes/haulmer-googleworkspace-mcp/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 
     let extension = mcp_extension(exe.as_ref(), ICON).unwrap();
 

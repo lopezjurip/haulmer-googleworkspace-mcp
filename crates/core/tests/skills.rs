@@ -4,9 +4,9 @@ use std::fs;
 use std::io::{Cursor, Read};
 use std::sync::Arc;
 
-use haulmer_connect_core::skills::SKILLS_TARBALL_URL;
-use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner};
-use haulmer_connect_core::{Core, CoreError, HttpResponse, Paths};
+use haulmer_googleworkspace_mcp_core::skills::SKILLS_TARBALL_URL;
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeReply, FakeRunner};
+use haulmer_googleworkspace_mcp_core::{Core, CoreError, HttpResponse, Paths};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 

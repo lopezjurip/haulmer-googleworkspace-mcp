@@ -3,9 +3,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use haulmer_connect_core::gws_env::write_marker;
-use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner};
-use haulmer_connect_core::{Core, CoreError, KeyStorage, Level, Paths, Selection, Service};
+use haulmer_googleworkspace_mcp_core::gws_env::write_marker;
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeReply, FakeRunner};
+use haulmer_googleworkspace_mcp_core::{
+    Core, CoreError, KeyStorage, Level, Paths, Selection, Service,
+};
 use tempfile::TempDir;
 
 struct Setup {

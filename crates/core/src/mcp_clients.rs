@@ -1,5 +1,5 @@
 //! The Install prompt: the Spanish text a person pastes into an Agent (Claude Code, Codex, ...)
-//! so that the Agent registers `haulmer-connect mcp` as a local MCP server by itself.
+//! so that the Agent registers `haulmer-googleworkspace-mcp mcp` as a local MCP server by itself.
 //! Spec: `docs/spec.md` "MCP".
 
 use std::path::Path;
@@ -14,7 +14,7 @@ use crate::skills::skills_add_command;
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::mcp_clients::InstallPrompt;
+/// use haulmer_googleworkspace_mcp_core::mcp_clients::InstallPrompt;
 /// let prompt = InstallPrompt { text: "...".into(), warning: None };
 /// assert_eq!(serde_json::to_string(&prompt).unwrap(), r#"{"text":"...","warning":null}"#);
 /// ```
@@ -36,13 +36,13 @@ pub struct InstallPrompt {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::mcp_clients::install_prompt;
-/// let installed = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// use haulmer_googleworkspace_mcp_core::mcp_clients::install_prompt;
+/// let installed = "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// let prompt = install_prompt(installed.as_ref()).unwrap();
 /// assert!(prompt.text.contains(&format!("-- \"{installed}\" mcp")));
 /// assert!(prompt.warning.is_none());
 ///
-/// let translocated = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// let translocated = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// assert!(install_prompt(translocated.as_ref()).is_err());
 /// ```
 pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
@@ -65,21 +65,21 @@ pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
 /// # Example
 ///
 /// ```
-/// use haulmer_connect_core::mcp_clients::check_exe_path;
-/// let installed = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// use haulmer_googleworkspace_mcp_core::mcp_clients::check_exe_path;
+/// let installed = "/Applications/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// assert_eq!(check_exe_path(installed.as_ref()), Ok(None));
 ///
-/// let mounted = "/Volumes/haulmer-connect/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// let mounted = "/Volumes/haulmer-googleworkspace-mcp/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// assert!(check_exe_path(mounted.as_ref()).unwrap().is_some());
 ///
-/// let translocated = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// let translocated = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-googleworkspace-mcp.app/Contents/MacOS/haulmer-googleworkspace-mcp";
 /// assert!(check_exe_path(translocated.as_ref()).is_err());
 /// ```
 pub fn check_exe_path(exe: &Path) -> Result<Option<String>, CoreError> {
     let exe = exe.to_string_lossy();
     if exe.contains("/AppTranslocation/") {
         return Err(CoreError::UnstableExe(
-            "macOS está ejecutando haulmer-connect desde una carpeta temporal. Muévela a \
+            "macOS está ejecutando haulmer-googleworkspace-mcp desde una carpeta temporal. Muévela a \
              Aplicaciones, ábrela de nuevo y vuelve a abrir esta ventana."
                 .to_string(),
         ));
@@ -87,7 +87,7 @@ pub fn check_exe_path(exe: &Path) -> Result<Option<String>, CoreError> {
     let mut warning = None;
     if exe.starts_with("/Volumes/") {
         warning = Some(
-            "Si abriste haulmer-connect desde la imagen de disco (.dmg), muévela a Aplicaciones \
+            "Si abriste haulmer-googleworkspace-mcp desde la imagen de disco (.dmg), muévela a Aplicaciones \
              y ábrela de nuevo: esta ruta deja de existir al expulsar el disco."
                 .to_string(),
         );

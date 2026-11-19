@@ -1,10 +1,10 @@
 ---
-title: haulmer-connect — self-service Google Workspace access for AI agents
+title: haulmer-googleworkspace-mcp — self-service Google Workspace access for AI agents
 status: ready-for-agent
 date: 2026-11-16
 ---
 
-# haulmer-connect — spec
+# haulmer-googleworkspace-mcp — spec
 
 ## Problem Statement
 
@@ -14,7 +14,7 @@ The company also needs this to be safe. Haulmer runs a financial product, so tok
 
 ## Solution
 
-A small desktop app, `haulmer-connect`, that a person downloads as a normal app (`.exe` installer on Windows, `.dmg` on macOS).
+A small desktop app, `haulmer-googleworkspace-mcp`, that a person downloads as a normal app (`.exe` installer on Windows, `.dmg` on macOS).
 
 The app shows one screen with a checkbox per Google service, in two levels: **Read** and **Write**. The person ticks what their agents may do and clicks **Save**. The app opens Google's sign-in page, the person approves, and the connection is ready. The same screen lets the person add services later, remove a service, or revoke everything.
 
@@ -58,16 +58,16 @@ No Haulmer server is involved. Tokens never leave the person's machine.
 
 22. As a Haulmer employee who already has `gws` credentials in the default config folder, I want the app to ask "You already have gws connected with another app. Replace?" before it changes anything, so that I do not lose a working setup by accident.
 23. As a Haulmer employee who answers "No" to the replace question, I want the app to leave my existing credentials untouched, so that nothing breaks.
-24. As an advanced user, I want to choose a different `gws` config folder under **Advanced**, so that I can keep `haulmer-connect` separate from another `gws` setup.
+24. As an advanced user, I want to choose a different `gws` config folder under **Advanced**, so that I can keep `haulmer-googleworkspace-mcp` separate from another `gws` setup.
 25. As an advanced user, I want the app to remember my chosen config folder, so that I set it only once.
 
 ### Agents
 
-26. As a Haulmer employee, I want a tray item **Conectar un agente…** that opens a window with two cards, so that I connect in the way that fits my tool without editing config files or copying skill files. In the first card, a one-click **Instalar MCP** button hands an MCP extension to my Chat app (for example Claude Desktop), which asks me to confirm. In the second card, an install prompt with a **Copiar** button lets my agent (Claude Code, Codex and others) connect itself to haulmer-connect and learn how to use Gmail, Calendar, Chat and Meet. If no app can open the extension, I want the window to say so and point me to the prompt.
+26. As a Haulmer employee, I want a tray item **Conectar un agente…** that opens a window with two cards, so that I connect in the way that fits my tool without editing config files or copying skill files. In the first card, a one-click **Instalar MCP** button hands an MCP extension to my Chat app (for example Claude Desktop), which asks me to confirm. In the second card, an install prompt with a **Copiar** button lets my agent (Claude Code, Codex and others) connect itself to haulmer-googleworkspace-mcp and learn how to use Gmail, Calendar, Chat and Meet. If no app can open the extension, I want the window to say so and point me to the prompt.
 27. As a Haulmer employee, I want the install prompt to install the core `gws` service skills (the "Services" table of gws `docs/skills.md`), so that my agents learn every service once, even ones I enable later. If `npx` is not available, I want the agent to say so and point me to the ZIP in the Skills window.
 28. As a Haulmer employee using a custom config folder, I want the MCP server to pass that folder to every `gws` call, so that agents find my credentials.
 29. As an agent, I want to run `gws` commands (for example `gws gmail +send`, `gws calendar +agenda`) that return JSON, so that I can act on the person's data reliably.
-30. As an agent, I want a clear error when `gws` is missing, no account is connected, the session expired or a permission is missing, so that I can tell the person exactly what to click or tick in `haulmer-connect`. I also want a tool that opens the app for them, and a read-only `status` tool that shows the account, the session and the services the app may use, so that I can check the state before I act.
+30. As an agent, I want a clear error when `gws` is missing, no account is connected, the session expired or a permission is missing, so that I can tell the person exactly what to click or tick in `haulmer-googleworkspace-mcp`. I also want a tool that opens the app for them, and a read-only `status` tool that shows the account, the session and the services the app may use, so that I can check the state before I act.
 
 ### Company and admin
 
@@ -99,8 +99,8 @@ No Haulmer server is involved. Tokens never leave the person's machine.
 
 ### OAuth client
 
-- One shared OAuth client, type **Desktop app**, audience **Internal** (haulmer.com only), in a dedicated Google Cloud project `haulmer-connect` with two owners. It is marked as a client for an AI-powered agent.
-- **Created 2026-11-16:** project `haulmer-connect` (number 252304543508), client ID `252304543508-fu07n7mngakrpuvmvdo28rek975lkccn.apps.googleusercontent.com`. Second owner: pending. gws uses no PKCE and sends the client secret, so the client must stay a Desktop client.
+- One shared OAuth client, type **Desktop app**, audience **Internal** (haulmer.com only), in a dedicated Google Cloud project with two owners. It is marked as a client for an AI-powered agent.
+- **Created 2026-11-16:** project `haulmer-googleworkspace-mcp` (project ID `haulmer-connect`, number 252304543508), client ID `252304543508-fu07n7mngakrpuvmvdo28rek975lkccn.apps.googleusercontent.com`. gws uses no PKCE and sends the client secret, so the client must stay a Desktop client.
 - The client is a public client (RFC 6749 §2.1, RFC 8252). Its client ID and secret ship inside the app and in the public repository; they are not treated as secrets (RFC 8252 §8.5). Only haulmer.com accounts can consent, and a Desktop client only redirects to loopback.
 - APIs enabled in the project: Gmail, Calendar, Drive, Chat, Meet, People. A Chat app must be configured once in the project for Chat write access.
 - Internal apps need no Google verification. If the Workspace admin restricts high-risk scopes (Gmail, Drive, Chat), the admin must mark this client as trusted.
@@ -136,7 +136,7 @@ Write always implies Read for the same service.
 ### Config folder
 
 - Default: the `gws` default folder (`~/.config/gws`), so agents and `gws` skills work with zero setup.
-- If credentials already exist there and were not created by `haulmer-connect`, the app asks before replacing them. "No" leaves them untouched.
+- If credentials already exist there and were not created by `haulmer-googleworkspace-mcp`, the app asks before replacing them. "No" leaves them untouched.
 - The folder is configurable under **Advanced** and persisted by the app. When it is not the default, the app passes it to every `gws` call, including the calls from the MCP server.
 - **Key storage** (`GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND`): configurable under **Advanced** as `auto` (default), `keyring` or `file`. `auto` means `keyring` for the default folder and `file` for a custom folder. Reason: with `keyring`, gws v0.22.5 keeps one keychain item (service `gws-cli`, account `$USER`) for every config folder, so a custom folder can collide with another gws setup on the same machine. The resolved backend is passed to every `gws` call.
 - "Credentials exist" means `<dir>/credentials.enc` or `<dir>/credentials.json` exists.
@@ -148,7 +148,7 @@ Write always implies Read for the same service.
 - **Connecting an agent.** The tray item **Conectar un agente…** (one item, no submenu) opens a window with the same name. The window has two cards. Both work even when no Google account is connected.
   - **Card 1, "Instalación en un clic"** (for Chat apps). It has the button **Instalar MCP**. Under it, the helper text reads: "Se abre tu app de IA (por ejemplo, Claude Desktop). Ahí pulsa "Instalar"." The UI does not say that the button works only with Claude.
   - **Card 2, "Con un prompt (Claude Code, Codex y otros agentes)"**. It shows the **install prompt** in a `<pre>` and a **Copiar** button.
-- **MCP extension (`.mcpb`).** When the person clicks **Instalar MCP**, the core builds `haulmer-connect.mcpb`, writes it to the app data folder and opens it with the default app. The OS hands the file to a compatible Chat app, such as Claude Desktop, which shows its own install dialog. The app does not write the Chat app's config. If no app can open `.mcpb` files, the window shows "No encontré una app que abra extensiones MCP. Usa el prompt de abajo."
+- **MCP extension (`.mcpb`).** When the person clicks **Instalar MCP**, the core builds `haulmer-googleworkspace-mcp.mcpb`, writes it to the app data folder and opens it with the default app. The OS hands the file to a compatible Chat app, such as Claude Desktop, which shows its own install dialog. The app does not write the Chat app's config. If no app can open `.mcpb` files, the window shows "No encontré una app que abra extensiones MCP. Usa el prompt de abajo."
   - **Thin bundle.** The bundle does not contain the server binary. It holds three files: `manifest.json`, `icon.png` (the app icon, 512×512) and a placeholder `README.md`, which is the `entry_point`.
   - **Command.** `server.mcp_config.command` is the path of the installed app (`std::env::current_exe()`, never canonicalized) and `args` is `["mcp"]`. On Windows the `.exe` suffix is stripped from `command`, because MCPB clients append `.exe` themselves.
   - **Path checks.** They are the same as for the install prompt (see below): a translocated path is an error and a `/Volumes/` path gives a warning.
@@ -157,16 +157,16 @@ Write always implies Read for the same service.
     - a long description with example requests, "what Google's MCP does not do (as of November 2026)" and how it works. The first part lists what Google's MCP does not do: it cannot send, reply to or forward mail (Google's Gmail MCP only drafts); Meet, Forms, Tasks and Admin reports have no Google MCP; it cannot run workflows across services; and it needs no Developer Preview enrollment or Cloud project. The second part explains: it runs locally; it works for @haulmer.com accounts only; it needs the app installed with the account connected; the person controls Read and Write per service in the app; there are no servers, and the session is encrypted locally with the key in the OS keychain; what Claude reads goes into the Claude conversation; it uses `gws`, the open source Google Workspace CLI, pinned at v0.22.5, with a link;
     - 20 keywords;
     - `privacy_policies`, with Google's privacy policy;
-    - homepage and support, both `github.com/lopezjurip/haulmer-connect`;
-    - the tools list (`gws`, `status`, `open_haulmer_connect`);
+    - homepage and support, both `github.com/lopezjurip/haulmer-googleworkspace-mcp`;
+    - the tools list (`gws`, `status`, `open_haulmer_googleworkspace_mcp`);
     - platforms `darwin` and `win32`.
   - **Unverified.** Whether Claude Desktop accepts a thin bundle whose command points outside the bundle. See "Known limits".
 - The core builds the **install prompt** in Rust each time the window opens. It contains the absolute executable path (`std::env::current_exe()`) and these parts:
-  - Claude Code: `claude mcp add --scope user haulmer-connect -- "<exe>" mcp`, checked with `claude mcp get haulmer-connect`.
-  - Codex: `codex mcp add haulmer-connect -- "<exe>" mcp`, checked with `codex mcp get haulmer-connect`.
+  - Claude Code: `claude mcp add --scope user haulmer-googleworkspace-mcp -- "<exe>" mcp`, checked with `claude mcp get haulmer-googleworkspace-mcp`.
+  - Codex: `codex mcp add haulmer-googleworkspace-mcp -- "<exe>" mcp`, checked with `codex mcp get haulmer-googleworkspace-mcp`.
   - Other agents (Hermes, Cursor): a generic stdio entry.
   - Skills step (optional): `npx skills add`, pinned to gws v0.22.5, with the 19 skills of the "Services" table in gws `docs/skills.md` (`gws-shared` plus one core skill per Google API; no helpers, personas or recipes). The list does not depend on the granted services. If `npx` fails, the agent says so and points to the ZIP.
-  - Chat apps: the prompt gives no manual steps for Claude Desktop. It says: "Claude Desktop: en haulmer-connect abre "Conectar un agente…" y pulsa "Instalar MCP"." The manual steps for ChatGPT desktop (Settings > MCP servers) stay.
+  - Chat apps: the prompt gives no manual steps for Claude Desktop. It says: "Claude Desktop: en haulmer-googleworkspace-mcp abre "Conectar un agente…" y pulsa "Instalar MCP"." The manual steps for ChatGPT desktop (Settings > MCP servers) stay.
   - A statement that Web chats (claude.ai, chatgpt.com) cannot work.
 - **Path checks (macOS).** They apply to the install prompt and to the MCP extension. If the app runs from a translocated path (`/AppTranslocation/`, so it was not moved to Applications), the window shows only an error that asks the person to move it. If the app runs from `/Volumes/` (the mounted DMG), the window shows a warning and the prompt.
 - **Skills come from two places:** the install prompt, or the Skills window (**Abrir skills**). The Skills window has the ZIP (**Descargar .zip**) and, under **Avanzado**, the same `npx skills add` command as the prompt. The ZIP covers only the granted services; the command always lists the core service skills.
@@ -176,7 +176,7 @@ Write always implies Read for the same service.
 
 ### MCP
 
-- `haulmer-connect mcp` runs an MCP server on stdin/stdout (newline-delimited JSON-RPC 2.0, no window). It uses the same folders as the app (home and `<data dir>/com.haulmer.connect`).
+- `haulmer-googleworkspace-mcp mcp` runs an MCP server on stdin/stdout (newline-delimited JSON-RPC 2.0, no window). It uses the same folders as the app (home and `<data dir>/com.haulmer.googleworkspace.mcp`).
 - Tool `gws`, with input `{args: string[]}`. It runs the pinned `gws` through the same environment as the app and returns stdout (stderr when stdout is empty); a non-zero exit sets `isError`. It never downloads gws.
 - **Errors tell the next step.** When a `gws` call fails, the server checks the app status and returns a Spanish message with the next step. The message quotes the exact UI labels (**Abrir configuración**, **Conectar** or **Guardar**). The cases are: `gws` missing, no account, expired session, and a missing permission for the service. In any other case the server returns the raw `gws` output, plus a hint about the Write level when the service is read-only.
 - Tool `status` (no arguments, read-only) returns Spanish text with the state of the app:
@@ -186,20 +186,20 @@ Write always implies Read for the same service.
   - the services the app may use, each with its level ("Lectura" or "Lectura y Escritura");
   - the services it may not use;
   - the business connectors, if any;
-  - the next step to activate more services, which also suggests `open_haulmer_connect`.
+  - the next step to activate more services, which also suggests `open_haulmer_googleworkspace_mcp`.
 
   Its description tells the model to call it first.
-- Tool `open_haulmer_connect` (no arguments) opens the desktop app on its settings window. The error messages and `status` suggest it.
-- The server has 3 tools: `gws`, `status` and `open_haulmer_connect`.
+- Tool `open_haulmer_googleworkspace_mcp` (no arguments) opens the desktop app on its settings window. The error messages and `status` suggest it.
+- The server has 3 tools: `gws`, `status` and `open_haulmer_googleworkspace_mcp`.
 - `auth` commands are blocked over MCP (`args[0] == "auth"`), so a model cannot call `gws auth export --unmasked` through this tool. Login and revoke stay in the app. This does not close the accepted risk above: an agent with a shell can still run `gws` directly.
-- **Single instance.** The app uses `tauri-plugin-single-instance` 2.5.5. A second launch (from Finder, the Start menu, or `open_haulmer_connect`) shows the settings window instead of starting a second tray icon. The MCP server launches the app with a `--show` argument. The `mcp` subcommand itself is dispatched before Tauri starts (`docs/adr/0001-mcp-dispatch-before-tauri.md`), so it never starts a second instance.
+- **Single instance.** The app uses `tauri-plugin-single-instance` 2.5.5. A second launch (from Finder, the Start menu, or `open_haulmer_googleworkspace_mcp`) shows the settings window instead of starting a second tray icon. The MCP server launches the app with a `--show` argument. The `mcp` subcommand itself is dispatched before Tauri starts (`docs/adr/0001-mcp-dispatch-before-tauri.md`), so it never starts a second instance.
 
 ### Distribution
 
-- Public repository `github.com/haulmer/haulmer-connect`.
+- Public repository `github.com/haulmer/haulmer-googleworkspace-mcp`.
 - CI builds a Windows x64 installer (`.exe`) and macOS `.dmg` files for Apple Silicon and Intel, and publishes them with SHA-256 checksums to GitHub Releases.
 - The pilot builds are **not code-signed**. Signing (Apple Developer ID + notarization, Windows code-signing certificate) is a precondition for company-wide rollout.
-- In-app updates use the Tauri updater plugin with a static `latest.json` on GitHub Releases (`https://github.com/haulmer/haulmer-connect/releases/latest/download/latest.json`, so it follows the latest published release). The release workflow builds it with the update files and their signatures (`darwin-aarch64`, `darwin-x86_64`, `windows-x86_64`).
+- In-app updates use the Tauri updater plugin with a static `latest.json` on GitHub Releases (`https://github.com/haulmer/haulmer-googleworkspace-mcp/releases/latest/download/latest.json`, so it follows the latest published release). The release workflow builds it with the update files and their signatures (`darwin-aarch64`, `darwin-x86_64`, `windows-x86_64`).
 - Update files are signed with a minisign key. The public key is committed in `tauri.conf.json`; the private key and its password are CI secrets (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) and a copy is kept outside the repo. Losing it means installed apps cannot update; users reinstall by hand.
 - The app checks for an update on start. A failed check is silent. When one exists, a banner offers "Install and restart"; nothing installs without the person's click. This signature check is separate from code signing: it proves an update came from the Haulmer key, but the OS still shows the unsigned-app warnings on first install.
 

@@ -17,7 +17,7 @@ Conecta Claude con tu Google Workspace de Haulmer: Gmail, Calendar, Drive, Chat,
 
 **Cómo funciona**
 - Solo funciona con cuentas @haulmer.com.
-- Necesita la app haulmer-connect instalada en tu equipo, con tu cuenta conectada.
+- Necesita la app haulmer-googleworkspace-mcp instalada en tu equipo, con tu cuenta conectada.
 - Tú controlas los permisos en la app: Lectura o Escritura por servicio, y puedes revocarlos cuando quieras.
-- haulmer-connect no tiene servidores. Tu sesión de Google queda cifrada en tu equipo, con la clave en el llavero del sistema. Lo que Claude lee con estas herramientas pasa a tu conversación con Claude.
+- haulmer-googleworkspace-mcp no tiene servidores. Tu sesión de Google queda cifrada en tu equipo, con la clave en el llavero del sistema. Lo que Claude lee con estas herramientas pasa a tu conversación con Claude.
 - Por debajo usa gws, la CLI open source de Google Workspace ([github.com/googleworkspace/cli](https://github.com/googleworkspace/cli)), fijada en la v0.22.5.

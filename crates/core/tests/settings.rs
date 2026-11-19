@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use haulmer_connect_core::testing::{FakeHttp, FakeRunner};
-use haulmer_connect_core::{Core, KeyStorage, Paths, Settings};
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeRunner};
+use haulmer_googleworkspace_mcp_core::{Core, KeyStorage, Paths, Settings};
 use tempfile::TempDir;
 
 /// A core over a temp home and temp app data.

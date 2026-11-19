@@ -1515,10 +1515,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
-name = "haulmer-connect"
+name = "haulmer-googleworkspace-mcp"
 version = "0.1.0"
 dependencies = [
- "haulmer-connect-core",
+ "haulmer-googleworkspace-mcp-core",
  "serde_json",
  "tauri",
  "tauri-build",
@@ -1530,11 +1530,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "haulmer-connect-core"
+name = "haulmer-googleworkspace-mcp-core"
 version = "0.1.0"
 dependencies = [
  "flate2",
- "haulmer-connect-core",
+ "haulmer-googleworkspace-mcp-core",
  "serde",
  "serde_json",
  "sha2 0.11.1",

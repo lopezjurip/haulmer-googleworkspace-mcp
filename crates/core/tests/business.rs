@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use haulmer_connect_core::gws_env::write_marker;
-use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner, HttpRequest};
-use haulmer_connect_core::{Core, HttpResponse, Paths};
+use haulmer_googleworkspace_mcp_core::gws_env::write_marker;
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeReply, FakeRunner, HttpRequest};
+use haulmer_googleworkspace_mcp_core::{Core, HttpResponse, Paths};
 use tempfile::TempDir;
 
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";

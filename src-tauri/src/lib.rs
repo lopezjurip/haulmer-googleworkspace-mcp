@@ -1,10 +1,10 @@
-//! Tauri shell of haulmer-connect: one window, IPC commands only, no local HTTP server.
-//! Every command calls the matching `haulmer_connect_core::Core` method 1:1, with no logic.
+//! Tauri shell of haulmer-googleworkspace-mcp: one window, IPC commands only, no local HTTP server.
+//! Every command calls the matching `haulmer_googleworkspace_mcp_core::Core` method 1:1, with no logic.
 
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use haulmer_connect_core::{
+use haulmer_googleworkspace_mcp_core::{
     BusinessConnector, BusinessConnectorInfo, BusinessSelection, Core, CoreError, KeyStorage,
     Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service, ServiceInfo, Status, mcp,
     mcp_clients, mcp_extension, scopes, skills,
@@ -19,7 +19,7 @@ use tauri::{
 use tauri_plugin_opener::OpenerExt;
 
 /// Bundle identifier of the app (`identifier` in `tauri.conf.json`); the app data folder is named after it.
-const IDENTIFIER: &str = "com.haulmer.connect";
+const IDENTIFIER: &str = "com.haulmer.googleworkspace.mcp";
 
 /// Event emitted with the Google sign-in URL while `save` waits for the login.
 const AUTH_URL_EVENT: &str = "auth-url";
@@ -189,7 +189,7 @@ fn default_selection() -> Selection {
 }
 
 /// `mcp_clients::install_prompt` for this executable. The prompt tells an agent how to connect
-/// itself to haulmer-connect. It fails with `UnstableExe` when this executable runs from a path
+/// itself to haulmer-googleworkspace-mcp. It fails with `UnstableExe` when this executable runs from a path
 /// that will not last (for example a macOS App Translocation folder).
 ///
 /// # Example
@@ -203,7 +203,7 @@ fn install_prompt() -> Result<mcp_clients::InstallPrompt, CoreError> {
 }
 
 /// Builds the MCP extension (`.mcpb`) for this executable, writes it to
-/// `<app data>/haulmer-connect.mcpb` and opens it with the default app (for example Claude Desktop
+/// `<app data>/haulmer-googleworkspace-mcp.mcpb` and opens it with the default app (for example Claude Desktop
 /// shows its install dialog). Returns the path warning, if any. It fails with `UnstableExe` when
 /// this executable runs from a path that will not last, and with `NoMcpExtensionApp` when no app
 /// opens the file.
@@ -224,7 +224,7 @@ fn install_mcp_extension(app: AppHandle) -> Result<Option<String>, CoreError> {
         .app_data_dir()
         .map_err(|error| CoreError::Io(error.to_string()))?;
     std::fs::create_dir_all(&dir)?;
-    let path = dir.join("haulmer-connect.mcpb");
+    let path = dir.join("haulmer-googleworkspace-mcp.mcpb");
     std::fs::write(&path, extension.bytes)?;
     app.opener()
         .open_path(path.to_string_lossy(), None::<&str>)
@@ -253,7 +253,7 @@ fn skills_install_command() -> String {
 /// # Example
 ///
 /// ```no_run
-/// haulmer_connect_lib::run();
+/// haulmer_googleworkspace_mcp_lib::run();
 /// ```
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -346,12 +346,12 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
     let (status_text, account_text, permissions) = match state {
         TrayState::Connecting => (
             "🟡 Conectando…".to_string(),
-            "Abrir haulmer-connect".to_string(),
+            "Abrir haulmer-googleworkspace-mcp".to_string(),
             Vec::new(),
         ),
         TrayState::Error => (
             "🔴 Estado no disponible".to_string(),
-            "Abrir haulmer-connect".to_string(),
+            "Abrir haulmer-googleworkspace-mcp".to_string(),
             Vec::new(),
         ),
         TrayState::Status(status) => {
@@ -416,13 +416,14 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
                 return;
             }
         };
-    let quit = match MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app) {
-        Ok(item) => item,
-        Err(error) => {
-            eprintln!("Could not build tray quit item: {error}");
-            return;
-        }
-    };
+    let quit =
+        match MenuItemBuilder::with_id("quit", "Salir de haulmer-googleworkspace-mcp").build(app) {
+            Ok(item) => item,
+            Err(error) => {
+                eprintln!("Could not build tray quit item: {error}");
+                return;
+            }
+        };
     let permission_items: Vec<_> = permissions
         .into_iter()
         .enumerate()
@@ -562,7 +563,7 @@ fn show_refreshed_window(app: &AppHandle, label: &str) {
 /// # Example
 ///
 /// ```ignore
-/// open_app_detached()?; // called by the `open_haulmer_connect` MCP tool
+/// open_app_detached()?; // called by the `open_haulmer_googleworkspace_mcp` MCP tool
 /// ```
 fn open_app_detached() -> Result<(), CoreError> {
     let mut command = std::process::Command::new(std::env::current_exe()?);
@@ -590,15 +591,15 @@ fn open_app_detached() -> Result<(), CoreError> {
     Ok(())
 }
 
-/// Runs the MCP server on stdin/stdout (`haulmer-connect mcp`), with no window. Uses the same
-/// folders as the app: `home` and `<data dir>/com.haulmer.connect` as Tauri's `app_data_dir`
+/// Runs the MCP server on stdin/stdout (`haulmer-googleworkspace-mcp mcp`), with no window. Uses the same
+/// folders as the app: `home` and `<data dir>/com.haulmer.googleworkspace.mcp` as Tauri's `app_data_dir`
 /// (`dirs::data_dir`: macOS `~/Library/Application Support`, Windows `%APPDATA%`, Linux
 /// `$XDG_DATA_HOME` or `~/.local/share`).
 ///
 /// # Example
 ///
 /// ```no_run
-/// haulmer_connect_lib::run_mcp().unwrap();
+/// haulmer_googleworkspace_mcp_lib::run_mcp().unwrap();
 /// ```
 pub fn run_mcp() -> Result<(), CoreError> {
     let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };

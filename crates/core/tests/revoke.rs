@@ -3,15 +3,15 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use haulmer_connect_core::gws_env::{MARKER_FILE, write_marker};
-use haulmer_connect_core::revoke::REVOKE_URL;
-use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner, HttpRequest};
-use haulmer_connect_core::{Core, CoreError, HttpResponse, Paths, RevokeOutcome};
+use haulmer_googleworkspace_mcp_core::gws_env::{MARKER_FILE, write_marker};
+use haulmer_googleworkspace_mcp_core::revoke::REVOKE_URL;
+use haulmer_googleworkspace_mcp_core::testing::{FakeHttp, FakeReply, FakeRunner, HttpRequest};
+use haulmer_googleworkspace_mcp_core::{Core, CoreError, HttpResponse, Paths, RevokeOutcome};
 use tempfile::TempDir;
 
 const TOKEN: &str = "1//refresh-token-secret";
 
-/// Temp home + app data, a custom gws folder holding haulmer-connect credentials,
+/// Temp home + app data, a custom gws folder holding haulmer-googleworkspace-mcp credentials,
 /// and a pinned `gws` on PATH whose logout deletes the credentials.
 struct Fixture {
     _home: TempDir,
@@ -57,7 +57,7 @@ fn fixture() -> Fixture {
 }
 
 impl Fixture {
-    /// Simulates a haulmer-connect login: credentials plus the ownership marker.
+    /// Simulates a haulmer-googleworkspace-mcp login: credentials plus the ownership marker.
     fn sign_in(&self) {
         let export = format!(
             r#"{{"type":"authorized_user","client_id":"id","client_secret":"secret","refresh_token":"{TOKEN}"}}"#
