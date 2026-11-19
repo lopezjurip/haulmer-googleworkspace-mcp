@@ -25,3 +25,7 @@ _Avoid_: web client, web agent
 **Install prompt**:
 The text a person pastes into an **Agent** so that the Agent connects itself to haulmer-connect. A **Chat app** cannot act on it, so it turns the prompt into manual steps for the person.
 _Avoid_: setup prompt, copy prompt, install instructions
+
+**MCP extension**:
+A one-click installer file (`.mcpb`) that haulmer-connect generates and that a compatible **Chat app**, such as Claude Desktop, opens to connect itself to haulmer-connect.
+_Avoid_: DXT, desktop extension, bundle

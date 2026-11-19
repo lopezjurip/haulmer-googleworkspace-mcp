@@ -361,8 +361,21 @@ const IS_INSTALL_WINDOW =
   new URLSearchParams(window.location.search).get("window") === "install";
 
 /**
- * The install window: shows the install prompt that a person pastes into an agent, and copies it.
- * It rebuilds the prompt on mount and each time the tray shows the window again.
+ * The state of the one-click install button in the install window.
+ *
+ * @example
+ * const state: InstallState = { kind: "error", text: "No hay una app para abrirlo." };
+ */
+type InstallState =
+  | { kind: "idle" }
+  | { kind: "running" }
+  | { kind: "done" }
+  | { kind: "error"; text: string };
+
+/**
+ * The install window: a one-click MCP extension install, and the install prompt that a person
+ * pastes into an agent. It rebuilds the prompt on mount and each time the tray shows the window
+ * again, and clears the result of the one-click install.
  *
  * @example
  * <InstallWindow />
@@ -372,6 +385,9 @@ function InstallWindow() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [installState, setInstallState] = useState<InstallState>({
+    kind: "idle",
+  });
 
   const latestRequest = useRef(0);
 
@@ -411,6 +427,7 @@ function InstallWindow() {
       setLoadError(null);
       setCopyError(null);
       setCopied(false);
+      setInstallState({ kind: "idle" });
       loadPrompt();
     }
 
@@ -438,6 +455,24 @@ function InstallWindow() {
       window.setTimeout(() => setCopied(false), 1800);
     } catch (error) {
       setCopyError(ERROR_TEXT(error));
+    }
+  }
+
+  /**
+   * Builds the MCP extension and opens it with the default app. Shows the result or the error.
+   * The `/Volumes/` warning that the command returns is ignored: the prompt's warning already
+   * shows it.
+   *
+   * @example
+   * await installMcp();
+   */
+  async function installMcp() {
+    setInstallState({ kind: "running" });
+    try {
+      await invoke<string | null>("install_mcp_extension");
+      setInstallState({ kind: "done" });
+    } catch (error) {
+      setInstallState({ kind: "error", text: ERROR_TEXT(error) });
     }
   }
 
@@ -472,11 +507,50 @@ function InstallWindow() {
             )}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-600 dark:text-zinc-400">
+              <h2 className="font-semibold">Instalación en un clic</h2>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={installState.kind === "running"}
+                  onClick={installMcp}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                >
+                  {installState.kind === "running"
+                    ? "Abriendo…"
+                    : "Instalar MCP"}
+                </button>
+                {installState.kind === "done" && (
+                  <span
+                    role="status"
+                    className="text-xs text-emerald-700 dark:text-emerald-400"
+                  >
+                    Listo. Sigue los pasos en tu app de IA.
+                  </span>
+                )}
+                {installState.kind === "error" && (
+                  <span
+                    role="alert"
+                    className="text-xs text-red-600 dark:text-red-400"
+                  >
+                    {installState.text}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
+                Se abre tu app de IA (por ejemplo, Claude Desktop). Ahí pulsa
+                "Instalar".
+              </p>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <h2 className="font-semibold">
+                Con un prompt (Claude Code, Codex y otros agentes)
+              </h2>
+              <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600 dark:text-zinc-400">
                 <li>Copia el prompt.</li>
                 <li>
                   Pégalo en tu agente (Claude Code, Codex, Hermes, Cursor…) o en
-                  tu app de chat (Claude Desktop, ChatGPT de escritorio).
+                  ChatGPT de escritorio.
                 </li>
                 <li>
                   Sigue sus pasos. No funciona en claude.ai ni en chatgpt.com.

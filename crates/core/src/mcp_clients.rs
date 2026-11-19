@@ -5,7 +5,6 @@
 use std::path::Path;
 
 use serde::Serialize;
-use serde_json::json;
 
 use crate::CoreError;
 use crate::skills::skills_add_command;
@@ -30,10 +29,9 @@ pub struct InstallPrompt {
 /// The Spanish Install prompt with `exe` as the MCP server command, and the core service skills
 /// ([`skills_add_command`]) as an optional last step.
 ///
-/// Apple has no supported API to detect app translocation. So this function reads the path text.
-/// It fails for a translocated path. It warns for `/Volumes/`, which is the mounted disk image or
-/// a working external drive. It uses `exe` as given. Never canonicalize it: on Windows that
-/// returns `\\?\` paths.
+/// The path is checked with [`check_exe_path`]: it fails for a translocated path and warns for
+/// `/Volumes/`. It uses `exe` as given. Never canonicalize it: on Windows that returns `\\?\`
+/// paths.
 ///
 /// # Example
 ///
@@ -48,6 +46,36 @@ pub struct InstallPrompt {
 /// assert!(install_prompt(translocated.as_ref()).is_err());
 /// ```
 pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
+    let warning = check_exe_path(exe)?;
+    let exe = exe.to_string_lossy();
+    let text = format!(
+        include_str!("install_prompt.es.txt"),
+        exe = exe,
+        skills_command = skills_add_command(),
+    );
+    Ok(InstallPrompt { text, warning })
+}
+
+/// Checks that the app path will last, for the Install prompt and the MCP extension.
+///
+/// Apple has no supported API to detect app translocation. So this function reads the path text.
+/// It fails for a translocated path. It returns a warning for `/Volumes/`, which is the mounted
+/// disk image or a working external drive. The warning is `None` for any other path.
+///
+/// # Example
+///
+/// ```
+/// use haulmer_connect_core::mcp_clients::check_exe_path;
+/// let installed = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// assert_eq!(check_exe_path(installed.as_ref()), Ok(None));
+///
+/// let mounted = "/Volumes/haulmer-connect/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// assert!(check_exe_path(mounted.as_ref()).unwrap().is_some());
+///
+/// let translocated = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// assert!(check_exe_path(translocated.as_ref()).is_err());
+/// ```
+pub fn check_exe_path(exe: &Path) -> Result<Option<String>, CoreError> {
     let exe = exe.to_string_lossy();
     if exe.contains("/AppTranslocation/") {
         return Err(CoreError::UnstableExe(
@@ -64,16 +92,5 @@ pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
                 .to_string(),
         );
     }
-
-    let desktop_json = serde_json::to_string_pretty(&json!({
-        "mcpServers": {"haulmer-connect": {"command": exe, "args": ["mcp"]}}
-    }))?;
-
-    let text = format!(
-        include_str!("install_prompt.es.txt"),
-        exe = exe,
-        desktop_json = desktop_json,
-        skills_command = skills_add_command(),
-    );
-    Ok(InstallPrompt { text, warning })
+    Ok(warning)
 }

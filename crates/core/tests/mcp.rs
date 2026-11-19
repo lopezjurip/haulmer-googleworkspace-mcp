@@ -90,7 +90,21 @@ fn initialize_and_list_tools() {
             .unwrap()
             .contains("settings window")
     );
-    assert_eq!(tools.as_array().unwrap().len(), 2);
+    assert_eq!(tools[2]["name"], "status");
+    assert_eq!(
+        tools[2]["inputSchema"],
+        json!({"type": "object", "properties": {}})
+    );
+    let status_description = tools[2]["description"].as_str().unwrap();
+    assert!(
+        status_description.contains("before `gws`"),
+        "{status_description}"
+    );
+    assert!(
+        status_description.contains("Read-only"),
+        "{status_description}"
+    );
+    assert_eq!(tools.as_array().unwrap().len(), 3);
     assert_eq!(replies[2]["error"]["code"], -32601);
 }
 
@@ -373,4 +387,142 @@ fn an_unknown_tool_is_an_invalid_params_error() {
     let replies = serve(&core, &[request]);
 
     assert_eq!(replies[0]["error"]["code"], -32602);
+}
+
+/// A `tools/call` request for the `status` tool.
+///
+/// # Example
+///
+/// ```ignore
+/// let replies = serve(&core, &[status_call(1)]);
+/// ```
+fn status_call(id: u32) -> Value {
+    json!({"jsonrpc": "2.0", "id": id, "method": "tools/call",
+        "params": {"name": "status", "arguments": {}}})
+}
+
+#[test]
+fn status_lists_the_account_and_the_levels_per_service() {
+    let (home, _app_data, runner, core) = setup();
+    connected(
+        &home,
+        &runner,
+        &["gmail.readonly", "calendar.readonly", "calendar.events"],
+        true,
+    );
+
+    let (text, is_error) = tool_text(&serve(&core, &[status_call(1)]));
+
+    assert!(!is_error);
+    let expected_head = "Cuenta: ana@haulmer.com\n\
+        Sesión: válida\n\
+        gws: instalado\n\
+        Con permiso: Gmail (Lectura), Calendar (Lectura y Escritura)\n\
+        Sin permiso: Chat, Meet, Drive, ";
+    assert!(text.starts_with(expected_head), "{text}");
+    assert!(
+        !text.contains("Sin permiso: Chat, Meet, Drive, Gmail"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nPara activar más servicios: pídele a la persona que abra haulmer-connect")
+    );
+    assert!(
+        text.contains("\"Abrir configuración\", active el servicio y pulse \"Guardar\"."),
+        "{text}"
+    );
+    assert!(
+        text.ends_with("También puedes llamar a open_haulmer_connect."),
+        "{text}"
+    );
+    assert!(!text.contains("Conectores de negocio"), "{text}");
+    assert_points_to_settings(&text);
+}
+
+#[test]
+fn status_without_an_account_says_so_and_asks_to_connect() {
+    let (_home, _app_data, _runner, core) = setup();
+
+    let (text, is_error) = tool_text(&serve(&core, &[status_call(1)]));
+
+    assert!(!is_error);
+    assert!(text.starts_with("Cuenta: ninguna conectada\n"), "{text}");
+    assert!(!text.contains("Sesión:"), "{text}");
+    assert!(text.contains("gws: instalado"), "{text}");
+    assert!(text.contains("Con permiso: ninguno"), "{text}");
+    assert!(
+        text.contains("active el servicio y pulse \"Conectar\"."),
+        "{text}"
+    );
+    assert!(!text.contains("\"Guardar\""), "{text}");
+}
+
+#[test]
+fn status_with_an_expired_session_says_so() {
+    let (home, _app_data, runner, core) = setup();
+    connected(&home, &runner, &["gmail.readonly"], false);
+
+    let (text, is_error) = tool_text(&serve(&core, &[status_call(1)]));
+
+    assert!(!is_error);
+    assert!(
+        text.contains("Cuenta: ana@haulmer.com\nSesión: expirada\n"),
+        "{text}"
+    );
+    assert!(text.contains("Con permiso: Gmail (Lectura)\n"), "{text}");
+}
+
+#[test]
+fn status_with_gws_missing_says_so() {
+    let (home, app_data) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let paths = Paths {
+        home: home.path().into(),
+        app_data: app_data.path().into(),
+    };
+    let core = Core::new(
+        paths,
+        Arc::new(FakeRunner::new()),
+        Arc::new(FakeHttp::new()),
+    );
+
+    let (text, is_error) = tool_text(&serve(&core, &[status_call(1)]));
+
+    assert!(!is_error);
+    assert!(text.contains("gws: no instalado"), "{text}");
+    assert!(text.starts_with("Cuenta: ninguna conectada"), "{text}");
+}
+
+#[test]
+fn status_names_the_business_connectors_when_granted() {
+    let (home, _app_data, runner, core) = setup();
+    connected(
+        &home,
+        &runner,
+        &["gmail.readonly", "youtube.readonly"],
+        true,
+    );
+
+    let (text, _) = tool_text(&serve(&core, &[status_call(1)]));
+
+    assert!(
+        text.contains("\nConectores de negocio: YouTube (Lectura)\n"),
+        "{text}"
+    );
+}
+
+#[test]
+fn status_that_fails_is_an_error_result_with_the_error_text() {
+    let (home, _app_data, runner, core) = setup();
+    let dir = home.path().join(".config/gws");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("credentials.enc"), b"x").unwrap();
+    runner.on(
+        &["auth", "status"],
+        FakeReply::exit(1, "", "keyring locked"),
+    );
+
+    let (text, is_error) = tool_text(&serve(&core, &[status_call(1)]));
+
+    assert!(is_error);
+    assert!(text.contains("keyring locked"), "{text}");
 }

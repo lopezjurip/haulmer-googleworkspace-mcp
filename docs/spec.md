@@ -18,7 +18,7 @@ A small desktop app, `haulmer-connect`, that a person downloads as a normal app 
 
 The app shows one screen with a checkbox per Google service, in two levels: **Read** and **Write**. The person ticks what their agents may do and clicks **Save**. The app opens Google's sign-in page, the person approves, and the connection is ready. The same screen lets the person add services later, remove a service, or revoke everything.
 
-Behind the screen, the app uses one shared OAuth client that Haulmer creates once (Desktop app type, Internal audience), so nobody else touches the Google Cloud console. The app delegates login, token storage, token refresh and all API calls to the Google Workspace CLI (`gws`). Agents use `gws` commands and the `gws` agent skills. The tray item **Conectar un agente…** gives the person an install prompt to paste into an agent. The agent connects itself to the app and installs the skills.
+Behind the screen, the app uses one shared OAuth client that Haulmer creates once (Desktop app type, Internal audience), so nobody else touches the Google Cloud console. The app delegates login, token storage, token refresh and all API calls to the Google Workspace CLI (`gws`). Agents use `gws` commands and the `gws` agent skills. The tray item **Conectar un agente…** opens a window with two ways to connect. A one-click **Instalar MCP** button installs an MCP extension (`.mcpb`) in a Chat app such as Claude Desktop. An install prompt, to paste into an agent, lets the agent connect itself to the app and install the skills.
 
 No Haulmer server is involved. Tokens never leave the person's machine.
 
@@ -63,11 +63,11 @@ No Haulmer server is involved. Tokens never leave the person's machine.
 
 ### Agents
 
-26. As a Haulmer employee, I want a tray item **Conectar un agente…** that shows an install prompt with a **Copiar** button, so that my agent connects itself to haulmer-connect and learns how to use Gmail, Calendar, Chat and Meet without me editing config files or copying skill files.
+26. As a Haulmer employee, I want a tray item **Conectar un agente…** that opens a window with two cards, so that I connect in the way that fits my tool without editing config files or copying skill files. In the first card, a one-click **Instalar MCP** button hands an MCP extension to my Chat app (for example Claude Desktop), which asks me to confirm. In the second card, an install prompt with a **Copiar** button lets my agent (Claude Code, Codex and others) connect itself to haulmer-connect and learn how to use Gmail, Calendar, Chat and Meet. If no app can open the extension, I want the window to say so and point me to the prompt.
 27. As a Haulmer employee, I want the install prompt to install the core `gws` service skills (the "Services" table of gws `docs/skills.md`), so that my agents learn every service once, even ones I enable later. If `npx` is not available, I want the agent to say so and point me to the ZIP in the Skills window.
 28. As a Haulmer employee using a custom config folder, I want the MCP server to pass that folder to every `gws` call, so that agents find my credentials.
 29. As an agent, I want to run `gws` commands (for example `gws gmail +send`, `gws calendar +agenda`) that return JSON, so that I can act on the person's data reliably.
-30. As an agent, I want a clear error when `gws` is missing, no account is connected, the session expired or a permission is missing, so that I can tell the person exactly what to click or tick in `haulmer-connect`. I also want a tool that opens the app for them.
+30. As an agent, I want a clear error when `gws` is missing, no account is connected, the session expired or a permission is missing, so that I can tell the person exactly what to click or tick in `haulmer-connect`. I also want a tool that opens the app for them, and a read-only `status` tool that shows the account, the session and the services the app may use, so that I can check the state before I act.
 
 ### Company and admin
 
@@ -87,7 +87,7 @@ No Haulmer server is involved. Tokens never leave the person's machine.
   - `status()`: returns whether `gws` is available, which account is connected, which levels are currently granted, and the active config folder.
   - `save(selection)`: maps the selection to scopes, revokes first if any previously granted level was removed, then runs the `gws` login with the new scope set.
   - `revoke_all()`: revokes the refresh token at Google's revoke endpoint, then runs `gws auth logout`.
-  - Plus `set_config_dir(path)` for the Advanced setting. The core also builds the install prompt for the **Conectar un agente** window.
+  - Plus `set_config_dir(path)` for the Advanced setting. The core also builds the install prompt and the MCP extension (`.mcpb`) for the **Conectar un agente** window.
 - **Running `gws`:** every call runs with a cwd the app controls (gws loads `.env` from its cwd), stdin closed, and `NO_COLOR=1`.
 - **Login flow:** gws v0.22.5 prints the Google sign-in URL to stderr (stdout when a proxy env var is set) and does **not** open the browser. The core reads the first `https://accounts.google.com/` line from either stream and opens it with the system browser. gws waits for the loopback callback with no timeout, so the UI has a **Cancel** button that kills the process. Exit 0 prints a success JSON; exit 1-5 prints `{"error":{...}}` (2 = auth, 3 = validation).
 - **Status:** `status()` reads `gws auth status` (JSON: `user`, `scopes`, `token_valid`, `encrypted_credentials_exists`), because the `scopes` printed by login are the requested scopes, not the granted ones.
@@ -144,16 +144,31 @@ Write always implies Read for the same service.
 ### Agents
 
 - Agents use `gws` commands and the `gws` skills from the pinned `gws` release.
-- The app never writes agent config files and never writes into agent skill folders. Agents connect themselves, or the person follows manual steps.
-- **Connecting an agent.** The tray item **Conectar un agente…** (one item, no submenu) opens a window with the same name. The window shows short steps, the **install prompt** in a `<pre>`, and a **Copiar** button. The prompt is shown even when no Google account is connected.
-- The core builds the prompt in Rust each time the window opens. It contains the absolute executable path (`std::env::current_exe()`) and these parts:
+- The app never writes agent config files and never writes into agent skill folders. Agents connect themselves, a Chat app installs the MCP extension after the person confirms, or the person follows manual steps.
+- **Connecting an agent.** The tray item **Conectar un agente…** (one item, no submenu) opens a window with the same name. The window has two cards. Both work even when no Google account is connected.
+  - **Card 1, "Instalación en un clic"** (for Chat apps). It has the button **Instalar MCP**. Under it, the helper text reads: "Se abre tu app de IA (por ejemplo, Claude Desktop). Ahí pulsa "Instalar"." The UI does not say that the button works only with Claude.
+  - **Card 2, "Con un prompt (Claude Code, Codex y otros agentes)"**. It shows the **install prompt** in a `<pre>` and a **Copiar** button.
+- **MCP extension (`.mcpb`).** When the person clicks **Instalar MCP**, the core builds `haulmer-connect.mcpb`, writes it to the app data folder and opens it with the default app. The OS hands the file to a compatible Chat app, such as Claude Desktop, which shows its own install dialog. The app does not write the Chat app's config. If no app can open `.mcpb` files, the window shows "No encontré una app que abra extensiones MCP. Usa el prompt de abajo."
+  - **Thin bundle.** The bundle does not contain the server binary. It holds three files: `manifest.json`, `icon.png` (the app icon, 512×512) and a placeholder `README.md`, which is the `entry_point`.
+  - **Command.** `server.mcp_config.command` is the path of the installed app (`std::env::current_exe()`, never canonicalized) and `args` is `["mcp"]`. On Windows the `.exe` suffix is stripped from `command`, because MCPB clients append `.exe` themselves.
+  - **Path checks.** They are the same as for the install prompt (see below): a translocated path is an error and a `/Volumes/` path gives a warning.
+  - **Manifest.** It is in Spanish only. It holds:
+    - a description: Gmail, Calendar, Drive, Chat, Sheets, Forms and more, for @haulmer.com accounts;
+    - a long description with example requests, "what Google's MCP does not do (as of November 2026)" and how it works. The first part lists what Google's MCP does not do: it cannot send, reply to or forward mail (Google's Gmail MCP only drafts); Meet, Forms, Tasks and Admin reports have no Google MCP; it cannot run workflows across services; and it needs no Developer Preview enrollment or Cloud project. The second part explains: it runs locally; it works for @haulmer.com accounts only; it needs the app installed with the account connected; the person controls Read and Write per service in the app; there are no servers, and the session is encrypted locally with the key in the OS keychain; what Claude reads goes into the Claude conversation; it uses `gws`, the open source Google Workspace CLI, pinned at v0.22.5, with a link;
+    - 20 keywords;
+    - `privacy_policies`, with Google's privacy policy;
+    - homepage and support, both `github.com/lopezjurip/haulmer-connect`;
+    - the tools list (`gws`, `status`, `open_haulmer_connect`);
+    - platforms `darwin` and `win32`.
+  - **Unverified.** Whether Claude Desktop accepts a thin bundle whose command points outside the bundle. See "Known limits".
+- The core builds the **install prompt** in Rust each time the window opens. It contains the absolute executable path (`std::env::current_exe()`) and these parts:
   - Claude Code: `claude mcp add --scope user haulmer-connect -- "<exe>" mcp`, checked with `claude mcp get haulmer-connect`.
   - Codex: `codex mcp add haulmer-connect -- "<exe>" mcp`, checked with `codex mcp get haulmer-connect`.
   - Other agents (Hermes, Cursor): a generic stdio entry.
   - Skills step (optional): `npx skills add`, pinned to gws v0.22.5, with the 19 skills of the "Services" table in gws `docs/skills.md` (`gws-shared` plus one core skill per Google API; no helpers, personas or recipes). The list does not depend on the granted services. If `npx` fails, the agent says so and points to the ZIP.
-  - Manual steps for Chat apps: Claude Desktop (Edit Config, with a JSON block) and ChatGPT desktop (Settings > MCP servers).
+  - Chat apps: the prompt gives no manual steps for Claude Desktop. It says: "Claude Desktop: en haulmer-connect abre "Conectar un agente…" y pulsa "Instalar MCP"." The manual steps for ChatGPT desktop (Settings > MCP servers) stay.
   - A statement that Web chats (claude.ai, chatgpt.com) cannot work.
-- **Path checks (macOS).** If the app runs from a translocated path (`/AppTranslocation/`, so it was not moved to Applications), the window shows only an error that asks the person to move it. If the app runs from `/Volumes/` (the mounted DMG), the window shows a warning and the prompt.
+- **Path checks (macOS).** They apply to the install prompt and to the MCP extension. If the app runs from a translocated path (`/AppTranslocation/`, so it was not moved to Applications), the window shows only an error that asks the person to move it. If the app runs from `/Volumes/` (the mounted DMG), the window shows a warning and the prompt.
 - **Skills come from two places:** the install prompt, or the Skills window (**Abrir skills**). The Skills window has the ZIP (**Descargar .zip**) and, under **Avanzado**, the same `npx skills add` command as the prompt. The ZIP covers only the granted services; the command always lists the core service skills.
 - Skill source: the `skills/` folder of the gws repository at tag `v0.22.5` (`https://github.com/googleworkspace/cli/archive/refs/tags/v0.22.5.tar.gz`). Skills are not in the release assets, and `gws generate-skills` is not pinned. Per service: `gws-shared` always; `gws-gmail*`, `gws-calendar*`, `gws-chat*`, `gws-meet`, `gws-drive*`. Each skill reads `../gws-shared/SKILL.md`, so the shared skill must be installed with them.
 - When the config folder or key storage is not the default, the `gws-shared/SKILL.md` in the ZIP gets an "Environment" section that tells agents to export `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` and `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` before every `gws` call. Skills installed with `npx skills add` are not edited. The MCP `gws` tool sets both variables itself.
@@ -164,7 +179,18 @@ Write always implies Read for the same service.
 - `haulmer-connect mcp` runs an MCP server on stdin/stdout (newline-delimited JSON-RPC 2.0, no window). It uses the same folders as the app (home and `<data dir>/com.haulmer.connect`).
 - Tool `gws`, with input `{args: string[]}`. It runs the pinned `gws` through the same environment as the app and returns stdout (stderr when stdout is empty); a non-zero exit sets `isError`. It never downloads gws.
 - **Errors tell the next step.** When a `gws` call fails, the server checks the app status and returns a Spanish message with the next step. The message quotes the exact UI labels (**Abrir configuración**, **Conectar** or **Guardar**). The cases are: `gws` missing, no account, expired session, and a missing permission for the service. In any other case the server returns the raw `gws` output, plus a hint about the Write level when the service is read-only.
-- Tool `open_haulmer_connect` (no arguments) opens the desktop app on its settings window. The error messages suggest it.
+- Tool `status` (no arguments, read-only) returns Spanish text with the state of the app:
+  - the connected account, or none;
+  - the session: valid or expired;
+  - whether `gws` is installed;
+  - the services the app may use, each with its level ("Lectura" or "Lectura y Escritura");
+  - the services it may not use;
+  - the business connectors, if any;
+  - the next step to activate more services, which also suggests `open_haulmer_connect`.
+
+  Its description tells the model to call it first.
+- Tool `open_haulmer_connect` (no arguments) opens the desktop app on its settings window. The error messages and `status` suggest it.
+- The server has 3 tools: `gws`, `status` and `open_haulmer_connect`.
 - `auth` commands are blocked over MCP (`args[0] == "auth"`), so a model cannot call `gws auth export --unmasked` through this tool. Login and revoke stay in the app. This does not close the accepted risk above: an agent with a shell can still run `gws` directly.
 - **Single instance.** The app uses `tauri-plugin-single-instance` 2.5.5. A second launch (from Finder, the Start menu, or `open_haulmer_connect`) shows the settings window instead of starting a second tray icon. The MCP server launches the app with a `--show` argument. The `mcp` subcommand itself is dispatched before Tauri starts (`docs/adr/0001-mcp-dispatch-before-tauri.md`), so it never starts a second instance.
 
@@ -207,6 +233,9 @@ Every dependency was checked for deprecation, last release, popularity and known
   - a custom config folder is passed to every `gws` call;
   - the install prompt contains the executable path and the commands for Claude Code, Codex and other agents;
   - the install prompt returns only an error for a `/AppTranslocation/` path, and a warning plus the prompt for a `/Volumes/` path;
+  - the install prompt has no manual Claude Desktop steps and points to **Instalar MCP**;
+  - the `.mcpb` has `manifest.json`, `icon.png` and `README.md`, a `command` equal to the executable path (without `.exe` on Windows) with `args: ["mcp"]`, and no server binary; the same path checks apply;
+  - the MCP `status` tool reports the account, the session, `gws`, the services with their levels and the next step;
   - a failed MCP `gws` call returns the Spanish next-step message for each case (`gws` missing, no account, expired session, missing permission), and the raw output otherwise.
 - **Prior art:** none; this is a new repository.
 - **Manual pilot checks** (cannot be automated): real Google sign-in, Admin console log entries, and the success criteria in Further Notes.
@@ -253,4 +282,5 @@ Full notes with source links: `docs/research/gws-spike.md`.
 - Google keeps at most 100 refresh tokens per account per client; the oldest is dropped silently.
 - A refresh token dies after revocation, 6 months unused, or a password change while Gmail scopes are granted. The person then saves again.
 - All users share the project's per-API quotas.
+- Unverified: whether Claude Desktop accepts a thin `.mcpb` whose `command` points outside the bundle (to the installed app). The owner will test it. If it fails, the fallback is to put the binary inside the bundle.
 - Windows: `gws.exe` runs without `CREATE_NO_WINDOW`, so a console window may flash on each `gws` call. Known follow-up, not in the single-instance and install-prompt change.

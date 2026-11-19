@@ -16,8 +16,9 @@
 //! | [`revoke`] | T06 | `Core::revoke_all` |
 //! | [`save`] | T07 | `Core::save`, `Core::cancel_login` |
 //! | [`skills`] | T08 | `Core::export_skills_zip`, `skills::skills_add_command` |
-//! | [`mcp`] | MCP | `mcp::serve`: the `gws` and `open_haulmer_connect` tools over MCP stdio |
-//! | [`mcp_clients`] | MCP | `mcp_clients::install_prompt`, the Install prompt for an Agent |
+//! | [`mcp`] | MCP | `mcp::serve`: the `gws`, `status` and `open_haulmer_connect` tools over MCP stdio |
+//! | [`mcp_clients`] | MCP | `mcp_clients::install_prompt`, the Install prompt for an Agent, and `check_exe_path` |
+//! | [`mcp_extension`] | MCP | `mcp_extension::mcp_extension`, the `.mcpb` MCP extension for Claude Desktop |
 //!
 //! Conventions for those tickets: put tests in `crates/core/tests/<module>.rs` using
 //! `testing::FakeRunner`, `testing::FakeHttp` and temp dirs; drop the `should_panic`
@@ -38,6 +39,7 @@ pub mod gws_binary;
 pub mod gws_env;
 pub mod mcp;
 pub mod mcp_clients;
+pub mod mcp_extension;
 pub mod oauth_client;
 mod ports;
 pub mod revoke;

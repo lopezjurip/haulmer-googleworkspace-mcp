@@ -557,6 +557,10 @@ pub enum CoreError {
     /// prompt would point at nothing later. The message is Spanish, for the person.
     #[error("{0}")]
     UnstableExe(String),
+    /// No app opened the MCP extension file. `src-tauri` returns it when opening the `.mcpb`
+    /// fails. The message is Spanish, for the person.
+    #[error("No encontré una app que abra extensiones MCP. Usa el prompt de abajo.")]
+    NoMcpExtensionApp,
     /// `save` revoked the old access (a level was removed) but the new sign-in was
     /// cancelled or failed: nothing is connected now.
     #[error(

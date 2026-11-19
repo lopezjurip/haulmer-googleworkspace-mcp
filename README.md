@@ -163,12 +163,29 @@ The installed app can run as an MCP server:
 
 ### Connect an agent
 
-1. Click the tray item **Conectar un agente…**. A window of the same name opens.
-2. Click **Copiar** to copy the install prompt.
-3. Paste the prompt into your agent (Claude Code, Codex, Hermes, Cursor).
+Click the tray item **Conectar un agente…**. A window of the same name opens. It
+works with no Google account connected, and it has two cards.
 
-The window works with no Google account connected. The prompt contains the
-absolute path of the app, so the agent can:
+**Card 1, "Instalación en un clic"** (Chat apps such as Claude Desktop):
+
+1. Click **Instalar MCP**.
+2. Your AI app opens (for example Claude Desktop). Click "Instalar" there.
+
+The app builds `haulmer-connect.mcpb`, saves it in its data folder and opens it
+with the default app. The OS hands the file to a compatible Chat app, which
+shows its own install dialog. If no app can open `.mcpb` files, the window says
+so ("No encontré una app que abra extensiones MCP. Usa el prompt de abajo.").
+
+The `.mcpb` is a thin bundle: a `manifest.json` (in Spanish), the app icon and a
+placeholder `README.md`. It does not contain the server. Its command points at
+the installed app, with `args: ["mcp"]`.
+
+**Card 2, "Con un prompt (Claude Code, Codex y otros agentes)"**:
+
+1. Click **Copiar** to copy the install prompt.
+2. Paste the prompt into your agent (Claude Code, Codex, Hermes, Cursor).
+
+The prompt contains the absolute path of the app, so the agent can:
 
 - add the MCP server and check it (`claude mcp add` and `claude mcp get` for
   Claude Code, `codex mcp add` and `codex mcp get` for Codex, a generic stdio
@@ -176,23 +193,27 @@ absolute path of the app, so the agent can:
 - install the core `gws` service skills (the "Services" table of gws
   `docs/skills.md`) with `npx skills add` (optional; if `npx` fails, the agent
   says so);
-- tell you the manual steps for Chat apps.
+- tell you the manual steps for ChatGPT desktop. For Claude Desktop, it points
+  you to **Instalar MCP**.
 
 On macOS, if the app runs from a translocated path (`/AppTranslocation/`), the
 window shows only an error. Move the app to Applications and open it again. If
 the app runs from the mounted DMG (`/Volumes/`), the window shows a warning and
-the prompt.
+the prompt. The same checks apply to the `.mcpb`.
 
 The app never writes agent config files or agent skill folders. Without `npx`,
 get the skills from the ZIP: **Abrir skills › Descargar .zip** in the Skills
 window.
 
-Chat apps (Claude Desktop, ChatGPT desktop) cannot connect themselves. Web chats
-(claude.ai, chatgpt.com) cannot use a local MCP server at all.
+Web chats (claude.ai, chatgpt.com) cannot use a local MCP server at all.
+
+Not verified yet: whether Claude Desktop accepts a thin bundle whose command
+points outside the bundle. If it does not, the fallback is to put the binary
+inside the bundle.
 
 ### Manual configuration
 
-For Claude Code and Codex:
+Use this only if you configure a client by hand. For Claude Code and Codex:
 
 ```sh
 claude mcp add --scope user haulmer-connect -- "<path-to-haulmer-connect>" mcp
@@ -202,10 +223,10 @@ codex mcp add haulmer-connect -- "<path-to-haulmer-connect>" mcp
 codex mcp get haulmer-connect
 ```
 
-For Chat apps and other clients, edit the configuration by hand:
+For Claude Desktop, use **Instalar MCP** instead. If you prefer to edit its
+configuration by hand (Edit Config):
 
 ```jsonc
-// Claude Desktop (Edit Config):
 // ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
@@ -229,6 +250,11 @@ args = ["mcp"]
 ### Tools
 
 - `gws`: runs a `gws` command. `auth` commands are refused over MCP.
+- `status`: read-only, no arguments. Reports the connected account, the session
+  (valid or expired), whether `gws` is installed, the services the app may use
+  (with "Lectura" or "Lectura y Escritura") and the ones it may not, the business
+  connectors, and the next step to activate more services. Models should call it
+  first.
 - `open_haulmer_connect`: opens the desktop app on its settings window.
 
 It is best to authenticate in the desktop app first, but you do not have to.

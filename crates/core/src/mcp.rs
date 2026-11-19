@@ -1,11 +1,11 @@
-//! MCP server: exposes two tools, `gws` and `open_haulmer_connect`, over the MCP stdio
+//! MCP server: exposes three tools, `gws`, `status` and `open_haulmer_connect`, over the MCP stdio
 //! transport (newline-delimited JSON-RPC 2.0). Spec: `docs/spec.md` "MCP".
 
 use std::io::{BufRead, Write};
 
 use serde_json::{Value, json};
 
-use crate::{Core, CoreError, Level, Service, scopes};
+use crate::{Core, CoreError, Level, Service, Status, scopes};
 
 /// Protocol version answered when the client does not send one.
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
@@ -13,8 +13,15 @@ const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 /// Text of the `gws` tool, shown to the model.
 const TOOL_DESCRIPTION: &str = "Run a Google Workspace CLI (gws) command on the user's Google account and return its JSON output. Example args: [\"gmail\",\"+triage\"], [\"calendar\",\"+agenda\"]. Discover methods with [\"schema\",\"gmail.users.messages.list\"]. If a call fails, follow the steps in the error message (it may suggest open_haulmer_connect).";
 
+/// Text of the `status` tool, shown to the model.
+const STATUS_TOOL_DESCRIPTION: &str = "Show which Google account is connected to haulmer-connect, whether its session is valid, and which Google services haulmer-connect may use, at the Read or Write level. Read-only; takes no arguments. Call it first, before `gws`, to know what is allowed and to avoid commands that would fail.";
+
 /// Text of the `open_haulmer_connect` tool, shown to the model.
 const OPEN_TOOL_DESCRIPTION: &str = "Open the haulmer-connect desktop app on its settings window, so that the person can connect their Google account or turn on permissions. Takes no arguments. Use it when the person has to act in haulmer-connect, then tell them what to do there.";
+
+/// Where the person finds the settings window, in Spanish. It continues "que ..." (a verb in
+/// the subjunctive), so every message that sends the person to the settings reads the same.
+const SETTINGS_PATH: &str = "abra haulmer-connect (su ícono en la barra de menú de macOS, o en la bandeja del sistema de Windows, junto al reloj) › \"Abrir configuración\"";
 
 /// A JSON-RPC error: code and message.
 type RpcError = (i32, &'static str);
@@ -103,6 +110,11 @@ fn handle(
                 "description": OPEN_TOOL_DESCRIPTION,
                 "inputSchema": {"type": "object", "properties": {}},
             },
+            {
+                "name": "status",
+                "description": STATUS_TOOL_DESCRIPTION,
+                "inputSchema": {"type": "object", "properties": {}},
+            },
         ]})),
         "tools/call" => call_tool(core, open_app, params),
         _ => Err((-32601, "Method not found")),
@@ -113,8 +125,8 @@ fn handle(
     }
 }
 
-/// Runs a tool: `params` is `{name: "gws", arguments: {args: [...]}}` or
-/// `{name: "open_haulmer_connect", arguments: {}}`.
+/// Runs a tool: `params` is `{name: "gws", arguments: {args: [...]}}`,
+/// `{name: "status", arguments: {}}` or `{name: "open_haulmer_connect", arguments: {}}`.
 /// Tool failures are results with `isError: true`; only a bad call is a JSON-RPC error.
 ///
 /// # Example
@@ -137,6 +149,12 @@ fn call_tool(
                  bandeja del sistema en Windows) › \"Abrir configuración\".",
                 false,
             )),
+            Err(error) => Ok(tool_result(&error.to_string(), true)),
+        };
+    }
+    if params["name"] == "status" {
+        return match core.status() {
+            Ok(status) => Ok(tool_result(&status_text(&status), false)),
             Err(error) => Ok(tool_result(&error.to_string(), true)),
         };
     }
@@ -178,6 +196,114 @@ fn call_tool(
         }
         Err(error) => Ok(tool_result(&error.to_string(), true)),
     }
+}
+
+/// The Spanish label of a permission level, for the `status` text.
+///
+/// Write wins over Read. It returns `None` when neither level is granted.
+///
+/// # Example
+///
+/// ```ignore
+/// assert_eq!(level_label(true, true), Some("(Lectura y Escritura)"));
+/// assert_eq!(level_label(false, true), Some("(Lectura)"));
+/// assert_eq!(level_label(false, false), None);
+/// ```
+fn level_label(can_write: bool, can_read: bool) -> Option<&'static str> {
+    if can_write {
+        Some("(Lectura y Escritura)")
+    } else if can_read {
+        Some("(Lectura)")
+    } else {
+        None
+    }
+}
+
+/// The Spanish text of the `status` tool.
+///
+/// It lists the account, the session and gws. It lists the services with and without permission,
+/// with the display names from the catalogue. It lists the business connectors when any is
+/// granted. It ends with how to turn on more services.
+///
+/// # Example
+///
+/// ```ignore
+/// let text = status_text(&status);
+/// assert!(text.starts_with("Cuenta: ana@haulmer.com\nSesión: válida\n"));
+/// ```
+fn status_text(status: &Status) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    match &status.account {
+        Some(account) => {
+            lines.push(format!("Cuenta: {account}"));
+            if status.token_valid {
+                lines.push("Sesión: válida".to_string());
+            } else {
+                lines.push("Sesión: expirada".to_string());
+            }
+        }
+        None => {
+            lines.push("Cuenta: ninguna conectada".to_string());
+        }
+    }
+    if status.gws_available {
+        lines.push("gws: instalado".to_string());
+    } else {
+        lines.push("gws: no instalado".to_string());
+    }
+
+    let mut with_permission: Vec<String> = Vec::new();
+    let mut without_permission: Vec<&str> = Vec::new();
+    for info in scopes::catalogue() {
+        let label = level_label(
+            status.granted.contains(info.service, Level::Write),
+            status.granted.contains(info.service, Level::Read),
+        );
+        if let Some(label) = label {
+            with_permission.push(format!("{} {label}", info.name));
+        } else {
+            without_permission.push(info.name);
+        }
+    }
+    if with_permission.is_empty() {
+        lines.push("Con permiso: ninguno".to_string());
+    } else {
+        lines.push(format!("Con permiso: {}", with_permission.join(", ")));
+    }
+    if without_permission.is_empty() {
+        lines.push("Sin permiso: ninguno".to_string());
+    } else {
+        lines.push(format!("Sin permiso: {}", without_permission.join(", ")));
+    }
+
+    let mut business: Vec<String> = Vec::new();
+    for info in scopes::business_catalogue() {
+        let label = level_label(
+            status
+                .business_granted
+                .contains(info.connector, Level::Write),
+            status
+                .business_granted
+                .contains(info.connector, Level::Read),
+        );
+        if let Some(label) = label {
+            business.push(format!("{} {label}", info.name));
+        }
+    }
+    if !business.is_empty() {
+        lines.push(format!("Conectores de negocio: {}", business.join(", ")));
+    }
+
+    let next_button = if status.account.is_some() {
+        "Guardar"
+    } else {
+        "Conectar"
+    };
+    lines.push(format!(
+        "Para activar más servicios: pídele a la persona que {SETTINGS_PATH}, active el servicio \
+         y pulse \"{next_button}\". También puedes llamar a open_haulmer_connect."
+    ));
+    lines.join("\n")
 }
 
 /// What to tell the agent when a gws call failed.
@@ -270,9 +396,7 @@ fn gws_missing_text() -> String {
 fn fix_in_settings(problem: &str, action: &str) -> String {
     format!(
         "{problem} Haz una de estas dos cosas:\n\
-         1. Pídele a la persona que abra haulmer-connect (su ícono en la barra de menú de macOS, \
-         o en la bandeja del sistema de Windows, junto al reloj) › \"Abrir configuración\", \
-         y que {action}.\n\
+         1. Pídele a la persona que {SETTINGS_PATH}, y que {action}.\n\
          2. O llama a la herramienta open_haulmer_connect para abrir esa ventana por ella."
     )
 }

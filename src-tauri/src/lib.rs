@@ -7,7 +7,7 @@ use std::process::Stdio;
 use haulmer_connect_core::{
     BusinessConnector, BusinessConnectorInfo, BusinessSelection, Core, CoreError, KeyStorage,
     Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service, ServiceInfo, Status, mcp,
-    mcp_clients, scopes, skills,
+    mcp_clients, mcp_extension, scopes, skills,
 };
 use serde_json::Value;
 use tauri::{
@@ -202,6 +202,39 @@ fn install_prompt() -> Result<mcp_clients::InstallPrompt, CoreError> {
     mcp_clients::install_prompt(&std::env::current_exe()?)
 }
 
+/// Builds the MCP extension (`.mcpb`) for this executable, writes it to
+/// `<app data>/haulmer-connect.mcpb` and opens it with the default app (for example Claude Desktop
+/// shows its install dialog). Returns the path warning, if any. It fails with `UnstableExe` when
+/// this executable runs from a path that will not last, and with `NoMcpExtensionApp` when no app
+/// opens the file.
+///
+/// # Example
+///
+/// ```js
+/// const warning = await invoke("install_mcp_extension"); // string | null
+/// ```
+#[tauri::command(async)]
+fn install_mcp_extension(app: AppHandle) -> Result<Option<String>, CoreError> {
+    let extension = mcp_extension::mcp_extension(
+        &std::env::current_exe()?,
+        include_bytes!("../icons/icon.png"),
+    )?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| CoreError::Io(error.to_string()))?;
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join("haulmer-connect.mcpb");
+    std::fs::write(&path, extension.bytes)?;
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|error| {
+            eprintln!("Could not open the MCP extension: {error}");
+            CoreError::NoMcpExtensionApp
+        })?;
+    Ok(extension.warning)
+}
+
 /// `skills::skills_add_command`: the `npx skills add` command of the Skills window, the same as in
 /// the install prompt.
 ///
@@ -234,7 +267,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            // The menu is set by `refresh_tray_menu` below, once the `Core` exists.
             let tray = TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?)
                 .show_menu_on_left_click(true)
@@ -247,6 +279,7 @@ pub fn run() {
                 })
                 .build(app)?;
             tray.set_icon_as_template(true)?;
+            set_tray_menu(app.handle(), TrayState::Connecting);
             let paths = Paths {
                 home: app.path().home_dir()?,
                 app_data: app.path().app_data_dir()?,
@@ -280,6 +313,7 @@ pub fn run() {
             youtube_channel,
             default_selection,
             install_prompt,
+            install_mcp_extension,
             skills_install_command
         ])
         .run(tauri::generate_context!())
@@ -412,10 +446,10 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
         builder = builder.item(item);
     }
     let menu = match builder
-        .separator()
         .item(&open)
-        .item(&skills)
+        .separator()
         .item(&connect_agent)
+        .item(&skills)
         .separator()
         .item(&quit)
         .build()
