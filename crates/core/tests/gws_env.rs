@@ -74,6 +74,33 @@ fn default_folder_passes_no_config_dir_and_keyring_backend() {
 }
 
 #[test]
+fn default_folder_removes_an_inherited_config_dir() {
+    // An exported GOOGLE_WORKSPACE_CLI_CONFIG_DIR would make gws log in to a folder that
+    // `status` never reads, so the app would report no account after a successful login.
+    let f = fixture();
+    let command = status_command(&f.core);
+    assert!(
+        command
+            .env_remove
+            .contains("GOOGLE_WORKSPACE_CLI_CONFIG_DIR")
+    );
+}
+
+#[test]
+fn custom_folder_does_not_remove_config_dir() {
+    let f = fixture();
+    f.core
+        .set_config_dir(Some(f.home.path().join("haulmer-gws")))
+        .unwrap();
+    let command = status_command(&f.core);
+    assert!(
+        !command
+            .env_remove
+            .contains("GOOGLE_WORKSPACE_CLI_CONFIG_DIR")
+    );
+}
+
+#[test]
 fn explicit_key_storage_overrides_auto() {
     let f = fixture();
     f.core.set_key_storage(KeyStorage::File).unwrap();

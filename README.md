@@ -141,18 +141,32 @@ apps.
 
 ### Local OAuth isolation
 
-When testing locally, use a separate config directory so the app does not touch
-an existing `gws` profile:
+By default the app uses the `gws` default folder (`~/.config/gws`), with the
+encryption key in the OS keyring. If you already use `gws` on your machine and
+want to keep that login apart, give the app its own folder in its settings file
+before you start it:
 
 ```sh
-export GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$PWD/.local/gws"
-export GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file
-mkdir -p "$GOOGLE_WORKSPACE_CLI_CONFIG_DIR"
+# macOS
+APP_DATA="$HOME/Library/Application Support/com.haulmer.googleworkspace.mcp"
+mkdir -p "$APP_DATA"
+cat > "$APP_DATA/settings.json" <<EOF
+{ "config_dir": "$PWD/.local/gws", "key_storage": "auto" }
+EOF
 pnpm tauri dev
 ```
 
-The app sets these variables for its own `gws` processes when its settings
-require them. Never use a real user's default credentials directory in tests.
+On Windows the file is `%APPDATA%\com.haulmer.googleworkspace.mcp\settings.json`.
+With a custom folder, `"auto"` key storage keeps the encryption key in
+`.encryption_key` inside that folder. `.local/` is ignored by git.
+
+Do not export `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` or
+`GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` for this. The app sets both for every
+`gws` process from its settings and ignores the values in your shell.
+
+The development build and the installed app share this settings file. To go
+back to the default folder, delete `settings.json`, or set `"config_dir"` to
+`null`. Never use a real user's default credentials directory in tests.
 
 ## MCP integration
 
