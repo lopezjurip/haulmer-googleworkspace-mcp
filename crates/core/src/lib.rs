@@ -1,5 +1,5 @@
 //! haulmer-connect core: maps the person's selection to a `gws` login, reports status,
-//! revokes access and installs agent skills.
+//! revokes access, exports agent skills and writes the Install prompt.
 //!
 //! The whole behaviour sits behind [`Core`], built from injected [`Paths`] and two ports,
 //! [`ProcessRunner`] and [`HttpClient`]. Each ticket owns one module and adds its
@@ -15,9 +15,9 @@
 //! | [`status`] | T05 | `Core::status` |
 //! | [`revoke`] | T06 | `Core::revoke_all` |
 //! | [`save`] | T07 | `Core::save`, `Core::cancel_login` |
-//! | [`skills`] | T08 | `Core::install_skills` |
-//! | [`mcp`] | MCP | `mcp::serve`, the `gws` tool over MCP stdio |
-//! | [`mcp_clients`] | MCP | `Core::add_to_claude_desktop`, `Core::add_to_chatgpt` |
+//! | [`skills`] | T08 | `Core::export_skills_zip`, `skills::skills_add_command` |
+//! | [`mcp`] | MCP | `mcp::serve`: the `gws` and `open_haulmer_connect` tools over MCP stdio |
+//! | [`mcp_clients`] | MCP | `mcp_clients::install_prompt`, the Install prompt for an Agent |
 //!
 //! Conventions for those tickets: put tests in `crates/core/tests/<module>.rs` using
 //! `testing::FakeRunner`, `testing::FakeHttp` and temp dirs; drop the `should_panic`
@@ -60,8 +60,8 @@ pub use system_http::SystemHttp;
 pub use system_runner::SystemRunner;
 pub use types::{
     BusinessAccess, BusinessConnector, BusinessConnectorInfo, BusinessSelection, CoreError,
-    InstalledSkills, KeyStorage, Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service,
-    ServiceCategory, ServiceInfo, ServiceLevel, Settings, Status,
+    KeyStorage, Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service, ServiceCategory,
+    ServiceInfo, ServiceLevel, Settings, Status,
 };
 
 /// The core. Thread-safe: the Tauri layer shares one instance across commands, so

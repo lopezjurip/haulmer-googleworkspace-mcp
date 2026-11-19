@@ -1,10 +1,11 @@
-//! MCP server (`mcp::serve`) and the client config writers (`Core::add_to_*`).
+//! MCP server (`mcp::serve`): the `gws` tool, the diagnosis of its failures and
+//! `open_haulmer_connect`.
 
-use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use haulmer_connect_core::testing::{FakeHttp, FakeReply, FakeRunner};
-use haulmer_connect_core::{Core, Paths, mcp};
+use haulmer_connect_core::{Core, CoreError, Paths, mcp};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
@@ -21,14 +22,23 @@ fn setup() -> (TempDir, TempDir, Arc<FakeRunner>, Core) {
     (home, app_data, runner, core)
 }
 
-/// Sends each request as one line and returns the reply lines parsed.
+/// Sends each request as one line and returns the reply lines parsed. The app opens fine.
 fn serve(core: &Core, requests: &[Value]) -> Vec<Value> {
+    serve_opening(core, &|| Ok(()), requests)
+}
+
+/// Like [`serve`], with `open_app` as the way to open the desktop app.
+fn serve_opening(
+    core: &Core,
+    open_app: &dyn Fn() -> Result<(), CoreError>,
+    requests: &[Value],
+) -> Vec<Value> {
     let input: String = requests
         .iter()
         .map(|request| format!("{request}\n"))
         .collect();
     let mut output = Vec::new();
-    mcp::serve(core, input.as_bytes(), &mut output).unwrap();
+    mcp::serve(core, open_app, input.as_bytes(), &mut output).unwrap();
     String::from_utf8(output)
         .unwrap()
         .lines()
@@ -60,11 +70,27 @@ fn initialize_and_list_tools() {
         replies[0]["result"]["serverInfo"]["name"],
         "haulmer-connect"
     );
-    assert_eq!(replies[1]["result"]["tools"][0]["name"], "gws");
-    assert_eq!(
-        replies[1]["result"]["tools"][0]["inputSchema"]["required"],
-        json!(["args"])
+    let tools = &replies[1]["result"]["tools"];
+    assert_eq!(tools[0]["name"], "gws");
+    assert_eq!(tools[0]["inputSchema"]["required"], json!(["args"]));
+    assert!(
+        tools[0]["description"]
+            .as_str()
+            .unwrap()
+            .contains("open_haulmer_connect")
     );
+    assert_eq!(tools[1]["name"], "open_haulmer_connect");
+    assert_eq!(
+        tools[1]["inputSchema"],
+        json!({"type": "object", "properties": {}})
+    );
+    assert!(
+        tools[1]["description"]
+            .as_str()
+            .unwrap()
+            .contains("settings window")
+    );
+    assert_eq!(tools.as_array().unwrap().len(), 2);
     assert_eq!(replies[2]["error"]["code"], -32601);
 }
 
@@ -72,7 +98,7 @@ fn initialize_and_list_tools() {
 fn bad_json_is_a_parse_error() {
     let (_home, _app_data, _runner, core) = setup();
     let mut output = Vec::new();
-    mcp::serve(&core, "{nope\n".as_bytes(), &mut output).unwrap();
+    mcp::serve(&core, &|| Ok(()), "{nope\n".as_bytes(), &mut output).unwrap();
     let reply: Value = serde_json::from_slice(&output).unwrap();
     assert_eq!(reply["error"]["code"], -32700);
 }
@@ -92,122 +118,259 @@ fn tool_call_runs_gws_and_returns_stdout() {
 }
 
 #[test]
-fn tool_call_reports_failure_from_stderr() {
-    let (_home, _app_data, runner, core) = setup();
-    runner.on(&["drive"], FakeReply::exit(2, "", "no credentials"));
-    let replies = serve(&core, &[call(1, json!(["drive", "files"]))]);
-    assert_eq!(replies[0]["result"]["content"][0]["text"], "no credentials");
-    assert_eq!(replies[0]["result"]["isError"], true);
-}
-
-#[test]
 fn tool_call_refuses_auth() {
     let (_home, _app_data, runner, core) = setup();
     let replies = serve(&core, &[call(1, json!(["auth", "export", "--unmasked"]))]);
     assert_eq!(replies[0]["result"]["isError"], true);
     assert_eq!(
         replies[0]["result"]["content"][0]["text"],
-        "auth commands are disabled over MCP; use the haulmer-connect app"
+        "Los comandos auth están desactivados en MCP. Conecta la cuenta desde la app haulmer-connect."
     );
     assert!(runner.calls().is_empty());
 }
 
-fn claude_config(home: &TempDir) -> PathBuf {
-    let base = if cfg!(target_os = "macos") {
-        "Library/Application Support"
-    } else if cfg!(windows) {
-        "AppData/Roaming"
-    } else {
-        ".config"
+/// What the agent is told in every diagnosis: both ways to reach the settings window.
+fn assert_points_to_settings(text: &str) {
+    assert!(text.contains("barra de menú"), "{text}");
+    assert!(text.contains("bandeja del sistema"), "{text}");
+    assert!(text.contains("\"Abrir configuración\""), "{text}");
+    assert!(text.contains("open_haulmer_connect"), "{text}");
+}
+
+/// The text and `isError` flag of the first reply.
+fn tool_text(replies: &[Value]) -> (String, bool) {
+    let result = &replies[0]["result"];
+    (
+        result["content"][0]["text"].as_str().unwrap().to_string(),
+        result["isError"].as_bool().unwrap(),
+    )
+}
+
+/// Gives the account in the default gws folder and answers `gws auth status` with `scopes`.
+fn connected(home: &TempDir, runner: &FakeRunner, scopes: &[&str], token_valid: bool) {
+    let dir = home.path().join(".config/gws");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("credentials.enc"), b"x").unwrap();
+    let scopes: Vec<String> = scopes
+        .iter()
+        .map(|scope| format!("https://www.googleapis.com/auth/{scope}"))
+        .collect();
+    let status = json!({"user": "ana@haulmer.com", "scopes": scopes, "token_valid": token_valid});
+    runner.on(&["auth", "status"], FakeReply::ok(&status.to_string()));
+}
+
+#[test]
+fn a_missing_gws_says_so() {
+    let (home, app_data) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let runner = Arc::new(FakeRunner::new());
+    let paths = Paths {
+        home: home.path().into(),
+        app_data: app_data.path().into(),
     };
-    home.path()
-        .join(base)
-        .join("Claude/claude_desktop_config.json")
+    let core = Core::new(paths, runner.clone(), Arc::new(FakeHttp::new()));
+
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["drive", "files"]))]));
+
+    assert!(is_error);
+    assert!(text.starts_with("gws no está instalado."), "{text}");
+    assert!(text.contains("\"Conectar\""), "{text}");
+    assert_points_to_settings(&text);
+    assert!(runner.args().iter().all(|args| args != &["drive", "files"]));
 }
 
 #[test]
-fn claude_config_keeps_other_servers() {
-    let (home, _app_data, _runner, core) = setup();
-    let path = claude_config(&home);
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(
-        &path,
-        r#"{"theme":"dark","mcpServers":{"other":{"command":"x","args":[]}}}"#,
-    )
-    .unwrap();
-
-    let written = core
-        .add_to_claude_desktop("/bin/haulmer-connect".as_ref())
-        .unwrap();
-
-    assert_eq!(written, path);
-    let config: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    assert_eq!(config["theme"], "dark");
-    assert_eq!(config["mcpServers"]["other"]["command"], "x");
-    assert_eq!(
-        config["mcpServers"]["haulmer-connect"],
-        json!({"command": "/bin/haulmer-connect", "args": ["mcp"]})
+fn gws_vanishing_during_a_failed_call_is_diagnosed_as_missing() {
+    let (_home, _app_data, _setup_runner, core) = setup();
+    // `setup` answers `--version`; the first lookup finds gws, later ones do not.
+    let lookups = AtomicUsize::new(0);
+    let runner = FakeRunner::new();
+    runner.on_with(&["--version"], move |_| {
+        if lookups.fetch_add(1, Ordering::SeqCst) == 0 {
+            FakeReply::ok("gws 0.22.5\n")
+        } else {
+            FakeReply::exit(127, "", "not found")
+        }
+    });
+    runner.on(&["drive"], FakeReply::exit(2, "", "boom"));
+    let core = Core::new(
+        core.paths().clone(),
+        Arc::new(runner),
+        Arc::new(FakeHttp::new()),
     );
+
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["drive", "files"]))]));
+
+    assert!(is_error);
+    assert!(text.starts_with("gws no está instalado."), "{text}");
 }
 
 #[test]
-fn claude_config_creates_missing_file() {
-    let (home, _app_data, _runner, core) = setup();
-    core.add_to_claude_desktop("/bin/haulmer-connect".as_ref())
-        .unwrap();
-    assert!(claude_config(&home).is_file());
-}
+fn a_failure_without_an_account_asks_to_connect() {
+    let (_home, _app_data, runner, core) = setup();
+    runner.on(&["drive"], FakeReply::exit(2, "", "no credentials"));
 
-#[test]
-fn claude_config_with_invalid_json_is_not_overwritten() {
-    let (home, _app_data, _runner, core) = setup();
-    let path = claude_config(&home);
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(&path, "{ not json").unwrap();
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["drive", "files"]))]));
 
+    assert!(is_error);
     assert!(
-        core.add_to_claude_desktop("/bin/haulmer-connect".as_ref())
-            .is_err()
+        text.starts_with("No hay una cuenta de Google conectada."),
+        "{text}"
     );
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ not json");
+    assert!(text.contains("\"Conectar\""), "{text}");
+    assert_points_to_settings(&text);
 }
 
 #[test]
-fn chatgpt_config_appends_and_keeps_other_content() {
-    let (home, _app_data, _runner, core) = setup();
-    let path = home.path().join(".codex/config.toml");
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(
-        &path,
-        "model = \"gpt-5\"\n\n[mcp_servers.other]\ncommand = \"x\"\n",
-    )
-    .unwrap();
+fn a_failure_with_an_expired_session_asks_to_save_again() {
+    let (home, _app_data, runner, core) = setup();
+    connected(&home, &runner, &["gmail.readonly"], false);
+    runner.on(&["gmail"], FakeReply::exit(1, "", "invalid_grant"));
 
-    core.add_to_chatgpt("/bin/haulmer-connect".as_ref())
-        .unwrap();
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["gmail", "+triage"]))]));
 
-    let text = std::fs::read_to_string(&path).unwrap();
-    assert!(text.starts_with("model = \"gpt-5\"\n\n[mcp_servers.other]\ncommand = \"x\"\n"));
-    assert!(text.ends_with(
-        "\n[mcp_servers.haulmer-connect]\ncommand = \"/bin/haulmer-connect\"\nargs = [\"mcp\"]\n"
-    ));
+    assert!(is_error);
+    assert!(text.starts_with("La sesión de Google expiró."), "{text}");
+    assert!(text.contains("\"Guardar\""), "{text}");
+    assert_points_to_settings(&text);
 }
 
 #[test]
-fn chatgpt_config_twice_leaves_one_table() {
-    let (home, _app_data, _runner, core) = setup();
-    let path = home.path().join(".codex/config.toml");
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(&path, "[mcp_servers.other]\ncommand = \"x\"\n").unwrap();
+fn a_failure_on_a_service_not_granted_names_the_permission() {
+    let (home, _app_data, runner, core) = setup();
+    connected(&home, &runner, &["gmail.readonly"], true);
+    runner.on(
+        &["drive"],
+        FakeReply::exit(1, "", "403 insufficient scopes"),
+    );
 
-    core.add_to_chatgpt("/old/haulmer-connect".as_ref())
-        .unwrap();
-    core.add_to_chatgpt("C:\\new\\haulmer-connect.exe".as_ref())
-        .unwrap();
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["drive", "files", "list"]))]));
 
-    let text = std::fs::read_to_string(&path).unwrap();
-    assert_eq!(text.matches("[mcp_servers.haulmer-connect]").count(), 1);
-    assert!(text.contains("command = \"C:\\\\new\\\\haulmer-connect.exe\""));
-    assert!(!text.contains("/old/"));
-    assert!(text.contains("[mcp_servers.other]\ncommand = \"x\"\n"));
+    assert!(is_error);
+    assert!(text.starts_with("Falta el permiso de Drive."), "{text}");
+    assert!(text.contains("\"Guardar\""), "{text}");
+    assert!(!text.contains("403"), "{text}");
+    assert_points_to_settings(&text);
+}
+
+#[test]
+fn a_failure_on_a_read_only_service_returns_the_output_plus_a_write_hint() {
+    let (home, _app_data, runner, core) = setup();
+    connected(&home, &runner, &["gmail.readonly"], true);
+    runner.on(
+        &["gmail"],
+        FakeReply::exit(1, "", "403 insufficient scopes"),
+    );
+
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["gmail", "send"]))]));
+
+    assert!(is_error);
+    assert!(text.starts_with("403 insufficient scopes"), "{text}");
+    assert!(text.contains("\"Escritura\""), "{text}");
+    assert!(text.contains("Gmail"), "{text}");
+    assert_points_to_settings(&text);
+}
+
+#[test]
+fn a_failure_on_a_service_with_write_access_returns_the_raw_output() {
+    let (home, _app_data, runner, core) = setup();
+    connected(
+        &home,
+        &runner,
+        &["gmail.readonly", "gmail.send", "gmail.modify"],
+        true,
+    );
+    runner.on(&["gmail"], FakeReply::exit(1, "", "400 bad request"));
+
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["gmail", "send"]))]));
+
+    assert!(is_error);
+    assert_eq!(text, "400 bad request");
+}
+
+#[test]
+fn a_failure_outside_any_service_returns_the_raw_output() {
+    let (home, _app_data, runner, core) = setup();
+    connected(&home, &runner, &["gmail.readonly"], true);
+    runner.on(&["schema"], FakeReply::exit(1, "", "unknown method"));
+
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["schema", "nope"]))]));
+
+    assert!(is_error);
+    assert_eq!(text, "unknown method");
+}
+
+#[test]
+fn when_the_status_itself_fails_the_raw_output_is_returned() {
+    let (home, _app_data, runner, core) = setup();
+    let dir = home.path().join(".config/gws");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("credentials.enc"), b"x").unwrap();
+    runner.on(
+        &["auth", "status"],
+        FakeReply::exit(1, "", "keyring locked"),
+    );
+    runner.on(&["gmail"], FakeReply::exit(1, "", "boom"));
+
+    let (text, is_error) = tool_text(&serve(&core, &[call(1, json!(["gmail", "+triage"]))]));
+
+    assert!(is_error);
+    assert_eq!(text, "boom");
+}
+
+#[test]
+fn a_successful_call_is_never_diagnosed() {
+    let (_home, _app_data, runner, core) = setup();
+    runner.on(&["drive"], FakeReply::ok("{}"));
+
+    serve(&core, &[call(1, json!(["drive", "files", "list"]))]);
+
+    assert!(runner.args().iter().all(|args| args != &["auth", "status"]));
+}
+
+fn open_call(id: u32) -> Value {
+    json!({"jsonrpc": "2.0", "id": id, "method": "tools/call",
+        "params": {"name": "open_haulmer_connect", "arguments": {}}})
+}
+
+#[test]
+fn open_haulmer_connect_opens_the_app_and_says_what_to_tell_the_person() {
+    let (_home, _app_data, _runner, core) = setup();
+    let opened = AtomicUsize::new(0);
+    let open_app = || {
+        opened.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    };
+
+    let (text, is_error) = tool_text(&serve_opening(&core, &open_app, &[open_call(1)]));
+
+    assert!(!is_error);
+    assert_eq!(
+        text,
+        "Pedí abrir haulmer-connect en su configuración. Si no aparece, pídele a la persona que lo \
+         abra desde el ícono de haulmer-connect (barra de menús en macOS, bandeja del sistema en \
+         Windows) › \"Abrir configuración\"."
+    );
+    assert_eq!(opened.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn open_haulmer_connect_reports_when_the_app_cannot_open() {
+    let (_home, _app_data, _runner, core) = setup();
+    let open_app = || Err(CoreError::Process("no window".into()));
+
+    let (text, is_error) = tool_text(&serve_opening(&core, &open_app, &[open_call(1)]));
+
+    assert!(is_error);
+    assert!(text.contains("no window"), "{text}");
+}
+
+#[test]
+fn an_unknown_tool_is_an_invalid_params_error() {
+    let (_home, _app_data, _runner, core) = setup();
+    let request = json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "nope", "arguments": {}}});
+
+    let replies = serve(&core, &[request]);
+
+    assert_eq!(replies[0]["error"]["code"], -32602);
 }

@@ -511,30 +511,6 @@ pub struct BusinessConnectorInfo {
     pub availability_reason: Option<&'static str>,
 }
 
-/// Skills written into one agent skills folder by `Core::install_skills`.
-///
-/// # Example
-///
-/// ```
-/// use haulmer_connect_core::InstalledSkills;
-/// let installed = InstalledSkills {
-///     target: "/home/ana/.claude/skills".into(),
-///     skills: vec!["gws-shared".into()],
-///     skipped: vec!["gws-gmail".into()],
-/// };
-/// assert_eq!(installed.skills, ["gws-shared"]);
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InstalledSkills {
-    /// The skills folder, e.g. `<home>/.claude/skills`.
-    pub target: PathBuf,
-    /// Skill folder names written there, e.g. `gws-shared`, `gws-gmail`.
-    pub skills: Vec<String>,
-    /// Wanted skill folders left untouched because something other than haulmer-connect
-    /// put them there.
-    pub skipped: Vec<String>,
-}
-
 /// Every error the core returns. Serialises as its display message for the UI.
 ///
 /// # Example
@@ -577,6 +553,10 @@ pub enum CoreError {
     /// Local credentials were cleared but Google did not confirm the revocation.
     #[error("local credentials were cleared but Google revocation failed: {0}")]
     RevokeFailed(String),
+    /// The app runs from a path that will not last (a translocated macOS app), so the Install
+    /// prompt would point at nothing later. The message is Spanish, for the person.
+    #[error("{0}")]
+    UnstableExe(String),
     /// `save` revoked the old access (a level was removed) but the new sign-in was
     /// cancelled or failed: nothing is connected now.
     #[error(

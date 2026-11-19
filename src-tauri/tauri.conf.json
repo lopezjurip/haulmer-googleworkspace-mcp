@@ -24,6 +24,14 @@
         "width": 560,
         "height": 520,
         "visible": false
+      },
+      {
+        "label": "install",
+        "title": "Conectar un agente",
+        "url": "index.html?window=install",
+        "width": 600,
+        "height": 680,
+        "visible": false
       }
     ],
     "security": {

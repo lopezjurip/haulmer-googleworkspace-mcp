@@ -91,12 +91,11 @@ export type BusinessConnectorInfo = {
 export type BusinessAccess = { connector: BusinessConnector; level: Level };
 export type BusinessSelection = BusinessAccess[];
 
-/** Skills written into one agent skills folder by `install_skills`; `skipped` were left alone (not installed by this app). */
-export type InstalledSkills = {
-  target: string;
-  skills: string[];
-  skipped: string[];
-};
+/**
+ * What the `install_prompt` command returns: the text a person pastes into an agent so that it
+ * connects itself to haulmer-connect, plus an optional warning to show above the steps.
+ */
+export type InstallPrompt = { text: string; warning: string | null };
 
 /**
  * Whether a selection holds a service level.

@@ -1,13 +1,13 @@
-//! T08 — `Core::install_skills()`: install the pinned gws skills into the agents.
+//! T08 — `Core::export_skills_zip()` and the skills an agent installs: the pinned gws skills,
+//! chosen by the granted services.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
+use std::collections::BTreeMap;
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 use crate::gws_binary::sha256_hex;
 use crate::ports::download;
-use crate::{Core, CoreError, InstalledSkills, Selection, Service};
+use crate::{Core, CoreError, Selection, Service};
 
 /// Commit of gws tag `v0.22.5` (a lightweight tag). Pinned by commit because tags can move.
 ///
@@ -17,6 +17,15 @@ use crate::{Core, CoreError, InstalledSkills, Selection, Service};
 /// assert_eq!(haulmer_connect_core::skills::SKILLS_COMMIT.len(), 40);
 /// ```
 pub const SKILLS_COMMIT: &str = "705fb0ecac6f4249679958f6325b809b63fdde17";
+
+/// Pinned tree of the gws repository, as `npx skills add` takes it (gws v0.22.5).
+///
+/// # Example
+///
+/// ```
+/// assert!(haulmer_connect_core::skills::SKILLS_REPO_URL.ends_with("/tree/v0.22.5"));
+/// ```
+pub const SKILLS_REPO_URL: &str = "https://github.com/googleworkspace/cli/tree/v0.22.5";
 
 /// Tarball of the gws repository at [`SKILLS_COMMIT`]; skills live under `<top>/skills/`.
 ///
@@ -39,113 +48,38 @@ pub const SKILLS_TARBALL_URL: &str = "https://github.com/googleworkspace/cli/arc
 pub const SKILLS_TARBALL_SHA256: &str =
     "38a27bae67755c101da1278154ca4b9bf9f7fdccd7a5a1db916c2ff880bfa9fd";
 
-/// File in `Paths::app_data` listing, per skills folder, the skills haulmer-connect installed.
-/// Only those are ever replaced or removed.
-const MANIFEST_FILE: &str = "installed-skills.json";
-
-/// Skills folder path -> skill folder names haulmer-connect installed there.
-type Manifest = BTreeMap<String, BTreeSet<String>>;
+/// The skills of the "Services" table in gws v0.22.5 `docs/skills.md`: `gws-shared` plus one
+/// core skill per Google API. Helpers, personas and recipes are left out. Update it together
+/// with the pin.
+const SERVICE_SKILLS: [&str; 19] = [
+    "gws-shared",
+    "gws-drive",
+    "gws-sheets",
+    "gws-gmail",
+    "gws-calendar",
+    "gws-admin-reports",
+    "gws-docs",
+    "gws-slides",
+    "gws-tasks",
+    "gws-people",
+    "gws-chat",
+    "gws-classroom",
+    "gws-forms",
+    "gws-keep",
+    "gws-meet",
+    "gws-events",
+    "gws-modelarmor",
+    "gws-workflow",
+    "gws-script",
+];
 
 /// The skill every per-service skill reads first; always installed.
 const SHARED_SKILL: &str = "gws-shared";
-
-/// Agent folders (under home) whose `skills/` folder receives the skills, when they exist.
-const AGENT_DIRS: [&str; 2] = [".claude", ".agents"];
 
 /// Files of one skill folder: path relative to the folder -> content.
 type SkillFiles = BTreeMap<PathBuf, Vec<u8>>;
 
 impl Core {
-    /// Installs `gws-shared` plus the skills of the granted services into
-    /// `<home>/.claude/skills` and `<home>/.agents/skills` (when their parent exists).
-    /// The granted services come from [`Core::status`]; see [`Core::install_skills_for`].
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use haulmer_connect_core::{Core, Paths};
-    /// # let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() });
-    /// for installed in core.install_skills().unwrap() {
-    ///     println!("{}: {:?}", installed.target.display(), installed.skills);
-    /// }
-    /// ```
-    pub fn install_skills(&self) -> Result<Vec<InstalledSkills>, CoreError> {
-        self.install_skills_for(&self.status()?.granted)
-    }
-
-    /// Installs `gws-shared` plus the skills of the services in `granted` into every
-    /// existing agent folder, replacing earlier copies and removing the skills of services
-    /// no longer granted. Downloads [`SKILLS_TARBALL_URL`] only if some agent folder exists.
-    /// Returns the installed skill folders per target, sorted.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use haulmer_connect_core::{Core, Level, Paths, Selection, Service};
-    /// # let core = Core::system(Paths { home: "/h".into(), app_data: "/a".into() });
-    /// let granted = Selection::from_levels([(Service::Gmail, Level::Read)]);
-    /// let installed = core.install_skills_for(&granted).unwrap();
-    /// // e.g. [/h/.claude/skills: gws-gmail, gws-gmail-read, ..., gws-shared]
-    /// ```
-    pub fn install_skills_for(
-        &self,
-        granted: &Selection,
-    ) -> Result<Vec<InstalledSkills>, CoreError> {
-        let targets: Vec<PathBuf> = AGENT_DIRS
-            .iter()
-            .map(|dir| self.paths.home.join(dir))
-            .filter(|dir| dir.is_dir())
-            .map(|dir| dir.join("skills"))
-            .collect();
-        if targets.is_empty() {
-            return Ok(Vec::new());
-        }
-        let mut skills = self.download_skills()?;
-        let shared_skill_md = skills
-            .get_mut(SHARED_SKILL)
-            .and_then(|shared| shared.get_mut(Path::new("SKILL.md")));
-        if let (Some(section), Some(content)) = (self.environment_section()?, shared_skill_md) {
-            content.extend_from_slice(section.as_bytes());
-        }
-        let wanted: BTreeMap<&String, &SkillFiles> = skills
-            .iter()
-            .filter(|(name, _)| *name == SHARED_SKILL || granted_skill(granted, name))
-            .collect();
-
-        let mut manifest = self.read_manifest()?;
-        let mut installed = Vec::new();
-        for target in targets {
-            fs::create_dir_all(&target)?;
-            let key = target.to_string_lossy().into_owned();
-            let owned = manifest.entry(key).or_default();
-            // Remove what the app installed earlier and no longer wants.
-            for name in owned.clone() {
-                if !wanted.contains_key(&name) {
-                    remove_dir_if_present(&target.join(&name))?;
-                    owned.remove(&name);
-                }
-            }
-            let (mut skills, mut skipped) = (Vec::new(), Vec::new());
-            for (name, files) in &wanted {
-                let dir = target.join(name);
-                if dir.exists() && !owned.contains(*name) {
-                    skipped.push(name.to_string());
-                } else {
-                    write_skill(&dir, files)?;
-                    owned.insert(name.to_string());
-                    skills.push(name.to_string());
-                }
-            }
-            self.write_manifest(&manifest)?;
-            installed.push(InstalledSkills {
-                target,
-                skills,
-                skipped,
-            });
-        }
-        Ok(installed)
-    }
-
     /// Builds a ZIP containing `gws-shared` and the skills of the currently granted services.
     pub fn export_skills_zip(&self) -> Result<Vec<u8>, CoreError> {
         let granted = self.status()?.granted;
@@ -177,40 +111,6 @@ impl Core {
             .finish()
             .map(|cursor| cursor.into_inner())
             .map_err(|error| CoreError::Download(format!("could not finish skills ZIP: {error}")))
-    }
-
-    /// Reads [`MANIFEST_FILE`]; empty when it does not exist.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let manifest = self.read_manifest()?;
-    /// let owned = manifest.get("/home/ana/.claude/skills"); // Some({"gws-shared", ...})
-    /// ```
-    fn read_manifest(&self) -> Result<Manifest, CoreError> {
-        let path = self.paths.app_data.join(MANIFEST_FILE);
-        match fs::read(&path) {
-            Ok(bytes) => serde_json::from_slice(&bytes)
-                .map_err(|error| CoreError::Parse(format!("{}: {error}", path.display()))),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Manifest::new()),
-            Err(error) => Err(error.into()),
-        }
-    }
-
-    /// Writes [`MANIFEST_FILE`], creating `app_data` if missing.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let mut manifest = self.read_manifest()?;
-    /// manifest.entry("/home/ana/.claude/skills".into()).or_default().insert("gws-shared".into());
-    /// self.write_manifest(&manifest)?;
-    /// ```
-    fn write_manifest(&self, manifest: &Manifest) -> Result<(), CoreError> {
-        fs::create_dir_all(&self.paths.app_data)?;
-        let json = serde_json::to_vec_pretty(manifest)?;
-        fs::write(self.paths.app_data.join(MANIFEST_FILE), json)?;
-        Ok(())
     }
 
     /// The "Environment" section for `gws-shared/SKILL.md` when agents need extra setup:
@@ -288,6 +188,24 @@ impl Core {
     }
 }
 
+/// The `npx skills add` command for [`SERVICE_SKILLS`], from the pinned [`SKILLS_REPO_URL`]. It is
+/// the same for every person: it does not depend on the granted services.
+///
+/// # Example
+///
+/// ```
+/// use haulmer_connect_core::skills::skills_add_command;
+/// assert!(skills_add_command().starts_with(
+///     "npx -y skills add https://github.com/googleworkspace/cli/tree/v0.22.5 -g -y -s gws-shared gws-drive "
+/// ));
+/// ```
+pub fn skills_add_command() -> String {
+    format!(
+        "npx -y skills add {SKILLS_REPO_URL} -g -y -s {}",
+        SERVICE_SKILLS.join(" ")
+    )
+}
+
 /// Adds stable generic skills for Workspace APIs that may not exist in the pinned
 /// gws skill tarball. The CLI still discovers their live methods with `help`/`schema`.
 fn add_builtin_workspace_skills(skills: &mut BTreeMap<String, SkillFiles>) {
@@ -335,20 +253,6 @@ fn granted_skill(granted: &Selection, name: &str) -> bool {
     skill_service(name).is_some_and(|service| granted.iter().any(|level| level.service == service))
 }
 
-/// Deletes the folder `dir` if it exists.
-///
-/// # Example
-///
-/// ```ignore
-/// remove_dir_if_present(&target.join("gws-gmail"))?;
-/// ```
-fn remove_dir_if_present(dir: &Path) -> Result<(), CoreError> {
-    if dir.exists() {
-        fs::remove_dir_all(dir)?;
-    }
-    Ok(())
-}
-
 /// Quotes `text` as one POSIX shell word: single quotes, embedded `'` written as `'\''`.
 ///
 /// # Example
@@ -358,25 +262,6 @@ fn remove_dir_if_present(dir: &Path) -> Result<(), CoreError> {
 /// ```
 fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
-}
-
-/// Replaces the folder `dir` with exactly `files`.
-///
-/// # Example
-///
-/// ```ignore
-/// write_skill(&target.join("gws-shared"), &skills["gws-shared"])?;
-/// ```
-fn write_skill(dir: &Path, files: &SkillFiles) -> Result<(), CoreError> {
-    remove_dir_if_present(dir)?;
-    for (relative, content) in files {
-        let path = dir.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, content)?;
-    }
-    Ok(())
 }
 
 /// Reads `<top>/skills/<name>/<file>` entries of a `.tar.gz`, whatever the top folder is
@@ -421,4 +306,21 @@ fn extract_skills(archive: &[u8]) -> Result<BTreeMap<String, SkillFiles>, CoreEr
         skills.entry(name).or_default().insert(relative, content);
     }
     Ok(skills)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SERVICE_SKILLS;
+
+    /// `npx skills add -s` takes exact names, so a repeated or misspelled one is a bug.
+    #[test]
+    fn service_skills_are_unique_gws_names() {
+        for (index, name) in SERVICE_SKILLS.iter().enumerate() {
+            assert!(name.starts_with("gws-"), "{name} is not a gws skill");
+            assert!(
+                !SERVICE_SKILLS[index + 1..].contains(name),
+                "{name} is listed twice"
+            );
+        }
+    }
 }

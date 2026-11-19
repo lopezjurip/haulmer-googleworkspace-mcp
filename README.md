@@ -13,7 +13,7 @@ audience, restricted to Haulmer accounts.
 
 | Path | Purpose |
 |---|---|
-| `crates/core` | Core behaviour, OAuth scopes, status, revocation and skills |
+| `crates/core` | Core behaviour, OAuth scopes, status and revocation |
 | `src-tauri` | Tauri v2 shell, tray, IPC commands and packaging |
 | `src` | React 19 + TypeScript + Tailwind CSS UI |
 | `docs` | Product specification, research and implementation tickets |
@@ -23,7 +23,7 @@ audience, restricted to Haulmer accounts.
 
 - Node.js 24
 - pnpm 12
-- Rust stable and Cargo
+- Rust stable 1.90 or newer, and Cargo
 - Tauri v2 system prerequisites:
   <https://v2.tauri.app/start/prerequisites/>
 - Google Cloud CLI (`gcloud`) for project administration
@@ -161,11 +161,51 @@ The installed app can run as an MCP server:
 /Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect mcp
 ```
 
-The UI can write the configuration for Claude Desktop and ChatGPT/Codex. The
-manual configuration examples are:
+### Connect an agent
+
+1. Click the tray item **Conectar un agente…**. A window of the same name opens.
+2. Click **Copiar** to copy the install prompt.
+3. Paste the prompt into your agent (Claude Code, Codex, Hermes, Cursor).
+
+The window works with no Google account connected. The prompt contains the
+absolute path of the app, so the agent can:
+
+- add the MCP server and check it (`claude mcp add` and `claude mcp get` for
+  Claude Code, `codex mcp add` and `codex mcp get` for Codex, a generic stdio
+  entry for other agents);
+- install the core `gws` service skills (the "Services" table of gws
+  `docs/skills.md`) with `npx skills add` (optional; if `npx` fails, the agent
+  says so);
+- tell you the manual steps for Chat apps.
+
+On macOS, if the app runs from a translocated path (`/AppTranslocation/`), the
+window shows only an error. Move the app to Applications and open it again. If
+the app runs from the mounted DMG (`/Volumes/`), the window shows a warning and
+the prompt.
+
+The app never writes agent config files or agent skill folders. Without `npx`,
+get the skills from the ZIP: **Abrir skills › Descargar .zip** in the Skills
+window.
+
+Chat apps (Claude Desktop, ChatGPT desktop) cannot connect themselves. Web chats
+(claude.ai, chatgpt.com) cannot use a local MCP server at all.
+
+### Manual configuration
+
+For Claude Code and Codex:
+
+```sh
+claude mcp add --scope user haulmer-connect -- "<path-to-haulmer-connect>" mcp
+claude mcp get haulmer-connect
+
+codex mcp add haulmer-connect -- "<path-to-haulmer-connect>" mcp
+codex mcp get haulmer-connect
+```
+
+For Chat apps and other clients, edit the configuration by hand:
 
 ```jsonc
-// Claude Desktop:
+// Claude Desktop (Edit Config):
 // ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
@@ -180,12 +220,25 @@ manual configuration examples are:
 ```toml
 # ChatGPT desktop, Codex CLI and IDE extensions:
 # ~/.codex/config.toml
+# In ChatGPT desktop you can also use Settings > MCP servers.
 [mcp_servers.haulmer-connect]
 command = "<path-to-haulmer-connect>"
 args = ["mcp"]
 ```
 
-Authenticate in the desktop app first. `auth` commands are refused over MCP.
+### Tools
+
+- `gws`: runs a `gws` command. `auth` commands are refused over MCP.
+- `open_haulmer_connect`: opens the desktop app on its settings window.
+
+It is best to authenticate in the desktop app first, but you do not have to.
+When a `gws` call fails, the server answers in Spanish with the next step. It
+names the exact button (**Abrir configuración**, **Conectar** or **Guardar**)
+for a missing `gws`, no account, an expired session or a missing permission, and
+it suggests `open_haulmer_connect`.
+
+The app allows one instance. A second launch, including `open_haulmer_connect`,
+shows the settings window instead of starting a second tray icon.
 
 ## Releases and updater signatures
 

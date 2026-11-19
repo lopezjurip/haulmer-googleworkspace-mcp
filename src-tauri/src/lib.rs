@@ -2,11 +2,12 @@
 //! Every command calls the matching `haulmer_connect_core::Core` method 1:1, with no logic.
 
 use std::path::PathBuf;
+use std::process::Stdio;
 
 use haulmer_connect_core::{
-    BusinessConnector, BusinessConnectorInfo, BusinessSelection, Core, CoreError, InstalledSkills,
-    KeyStorage, Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service, ServiceInfo, Status,
-    mcp, scopes,
+    BusinessConnector, BusinessConnectorInfo, BusinessSelection, Core, CoreError, KeyStorage,
+    Level, Paths, RevokeOutcome, SaveOutcome, Selection, Service, ServiceInfo, Status, mcp,
+    mcp_clients, scopes, skills,
 };
 use serde_json::Value;
 use tauri::{
@@ -106,18 +107,6 @@ fn revoke_all(
     result
 }
 
-/// `Core::install_skills`.
-///
-/// # Example
-///
-/// ```js
-/// const installed = await invoke("install_skills");
-/// ```
-#[tauri::command(async)]
-fn install_skills(core: State<'_, Core>) -> Result<Vec<InstalledSkills>, CoreError> {
-    core.install_skills()
-}
-
 /// Exports the granted skills to a user-selected path.
 #[tauri::command(async)]
 fn export_skills_zip(core: State<'_, Core>, path: PathBuf) -> Result<(), CoreError> {
@@ -199,28 +188,31 @@ fn default_selection() -> Selection {
     scopes::default_selection()
 }
 
-/// `Core::add_to_claude_desktop` with this executable; returns the config file path.
+/// `mcp_clients::install_prompt` for this executable. The prompt tells an agent how to connect
+/// itself to haulmer-connect. It fails with `UnstableExe` when this executable runs from a path
+/// that will not last (for example a macOS App Translocation folder).
 ///
 /// # Example
 ///
 /// ```js
-/// const path = await invoke("add_to_claude_desktop");
+/// const { text, warning } = await invoke("install_prompt");
 /// ```
 #[tauri::command]
-fn add_to_claude_desktop(core: State<'_, Core>) -> Result<PathBuf, CoreError> {
-    core.add_to_claude_desktop(&std::env::current_exe()?)
+fn install_prompt() -> Result<mcp_clients::InstallPrompt, CoreError> {
+    mcp_clients::install_prompt(&std::env::current_exe()?)
 }
 
-/// `Core::add_to_chatgpt` with this executable; returns the config file path.
+/// `skills::skills_add_command`: the `npx skills add` command of the Skills window, the same as in
+/// the install prompt.
 ///
 /// # Example
 ///
 /// ```js
-/// const path = await invoke("add_to_chatgpt");
+/// const command = await invoke("skills_install_command"); // "npx -y skills add … -s gws-shared …"
 /// ```
 #[tauri::command]
-fn add_to_chatgpt(core: State<'_, Core>) -> Result<PathBuf, CoreError> {
-    core.add_to_chatgpt(&std::env::current_exe()?)
+fn skills_install_command() -> String {
+    skills::skills_add_command()
 }
 
 /// Starts the Tauri application with one shared `Core` built from the real folders.
@@ -233,34 +225,23 @@ fn add_to_chatgpt(core: State<'_, Core>) -> Result<PathBuf, CoreError> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be the first plugin: a second launch shows the settings window of the running app.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            show_window(app, "main")
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            let open = MenuItemBuilder::with_id("open", "Abrir configuración").build(app)?;
-            let skills = MenuItemBuilder::with_id("skills", "Abrir skills").build(app)?;
-            let copy_prompt =
-                MenuItemBuilder::with_id("copy-prompt", "Copiar prompt de instalación")
-                    .build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Salir de haulmer-connect").build(app)?;
-            let menu = MenuBuilder::new(app)
-                .items(&[&open, &skills, &copy_prompt])
-                .separator()
-                .item(&quit)
-                .build()?;
+            // The menu is set by `refresh_tray_menu` below, once the `Core` exists.
             let tray = TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?)
-                .menu(&menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "open" | "connect" => show_main_window(app),
-                    "skills" => show_skills_window(app),
-                    "copy-prompt" => {
-                        if let Err(error) = app.emit("copy-install-prompt", ()) {
-                            eprintln!("Could not request prompt copy: {error}");
-                        }
-                    }
+                    "open" | "connect" => show_window(app, "main"),
+                    "skills" => show_window(app, "skills"),
+                    "connect-agent" => show_refreshed_window(app, "install"),
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -274,6 +255,10 @@ pub fn run() {
             refresh_tray_menu(app.handle(), &app.state::<Core>());
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            // `run_mcp` launches the app with `--show` when an agent asks to open it.
+            if std::env::args().any(|arg| arg == "--show") {
+                show_window(app.handle(), "main");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -287,7 +272,6 @@ pub fn run() {
             save,
             cancel_login,
             revoke_all,
-            install_skills,
             export_skills_zip,
             set_config_dir,
             set_key_storage,
@@ -295,8 +279,8 @@ pub fn run() {
             business_catalogue,
             youtube_channel,
             default_selection,
-            add_to_claude_desktop,
-            add_to_chatgpt
+            install_prompt,
+            skills_install_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -390,11 +374,11 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
             return;
         }
     };
-    let copy_prompt =
-        match MenuItemBuilder::with_id("copy-prompt", "Copiar prompt de instalación").build(app) {
+    let connect_agent =
+        match MenuItemBuilder::with_id("connect-agent", "Conectar un agente…").build(app) {
             Ok(item) => item,
             Err(error) => {
-                eprintln!("Could not build tray copy prompt item: {error}");
+                eprintln!("Could not build tray connect agent item: {error}");
                 return;
             }
         };
@@ -431,7 +415,7 @@ fn set_tray_menu(app: &AppHandle, state: TrayState) {
         .separator()
         .item(&open)
         .item(&skills)
-        .item(&copy_prompt)
+        .item(&connect_agent)
         .separator()
         .item(&quit)
         .build()
@@ -504,22 +488,72 @@ fn business_label(connector: BusinessConnector) -> &'static str {
     }
 }
 
-/// Shows and focuses the main window from the tray menu or icon.
-fn show_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+/// Unminimizes, shows and focuses the window with this label. Does nothing when no window has it.
+///
+/// # Example
+///
+/// ```ignore
+/// show_window(app, "main"); // from the tray menu or a second launch
+/// ```
+fn show_window(app: &AppHandle, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
 }
 
-/// Shows and focuses the skills window from the tray menu.
-fn show_skills_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("skills") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+/// Tells the window `label` to reload its data (`<label>-window-shown`, sent to that window only),
+/// then shows and focuses it. The event goes first, so the window resets before the person sees it.
+///
+/// # Example
+///
+/// ```ignore
+/// show_refreshed_window(app, "install"); // from the "connect-agent" tray item
+/// ```
+fn show_refreshed_window(app: &AppHandle, label: &str) {
+    if app.get_webview_window(label).is_none() {
+        return;
     }
+    if let Err(error) = app.emit_to(label, &format!("{label}-window-shown"), ()) {
+        eprintln!("Could not notify the {label} window: {error}");
+    }
+    show_window(app, label);
+}
+
+/// Launches the GUI app (`<this executable> --show`) and returns at once, without waiting for it.
+/// The child is detached from the MCP client's process group, so it survives when the client stops
+/// the server. If the app already runs, single-instance shows its window and the child exits.
+///
+/// # Example
+///
+/// ```ignore
+/// open_app_detached()?; // called by the `open_haulmer_connect` MCP tool
+/// ```
+fn open_app_detached() -> Result<(), CoreError> {
+    let mut command = std::process::Command::new(std::env::current_exe()?);
+    command
+        .arg("--show")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    }
+    let mut child = command.spawn()?;
+    // Reap the child in the background so that no zombie stays.
+    std::thread::spawn(move || child.wait());
+    Ok(())
 }
 
 /// Runs the MCP server on stdin/stdout (`haulmer-connect mcp`), with no window. Uses the same
@@ -550,5 +584,10 @@ pub fn run_mcp() -> Result<(), CoreError> {
         app_data: data_dir.join(IDENTIFIER),
         home,
     });
-    mcp::serve(&core, std::io::stdin().lock(), std::io::stdout().lock())
+    mcp::serve(
+        &core,
+        &open_app_detached,
+        std::io::stdin().lock(),
+        std::io::stdout().lock(),
+    )
 }

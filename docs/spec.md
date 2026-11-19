@@ -18,7 +18,7 @@ A small desktop app, `haulmer-connect`, that a person downloads as a normal app 
 
 The app shows one screen with a checkbox per Google service, in two levels: **Read** and **Write**. The person ticks what their agents may do and clicks **Save**. The app opens Google's sign-in page, the person approves, and the connection is ready. The same screen lets the person add services later, remove a service, or revoke everything.
 
-Behind the screen, the app uses one shared OAuth client that Haulmer creates once (Desktop app type, Internal audience), so nobody else touches the Google Cloud console. The app delegates login, token storage, token refresh and all API calls to the Google Workspace CLI (`gws`). Agents use `gws` commands and the `gws` agent skills, which the app installs into the person's agents with one button.
+Behind the screen, the app uses one shared OAuth client that Haulmer creates once (Desktop app type, Internal audience), so nobody else touches the Google Cloud console. The app delegates login, token storage, token refresh and all API calls to the Google Workspace CLI (`gws`). Agents use `gws` commands and the `gws` agent skills. The tray item **Conectar un agente…** gives the person an install prompt to paste into an agent. The agent connects itself to the app and installs the skills.
 
 No Haulmer server is involved. Tokens never leave the person's machine.
 
@@ -63,11 +63,11 @@ No Haulmer server is involved. Tokens never leave the person's machine.
 
 ### Agents
 
-26. As a Haulmer employee, I want an **Install in my agents** button, so that my agents learn how to use Gmail, Calendar, Chat and Meet without me copying files.
-27. As a Haulmer employee, I want the app to install only the `gws` skills for the services I enabled, so that agents do not try services they cannot use.
-28. As a Haulmer employee using a custom config folder, I want the installed skills to tell agents to set that folder, so that agents find my credentials.
+26. As a Haulmer employee, I want a tray item **Conectar un agente…** that shows an install prompt with a **Copiar** button, so that my agent connects itself to haulmer-connect and learns how to use Gmail, Calendar, Chat and Meet without me editing config files or copying skill files.
+27. As a Haulmer employee, I want the install prompt to install the core `gws` service skills (the "Services" table of gws `docs/skills.md`), so that my agents learn every service once, even ones I enable later. If `npx` is not available, I want the agent to say so and point me to the ZIP in the Skills window.
+28. As a Haulmer employee using a custom config folder, I want the MCP server to pass that folder to every `gws` call, so that agents find my credentials.
 29. As an agent, I want to run `gws` commands (for example `gws gmail +send`, `gws calendar +agenda`) that return JSON, so that I can act on the person's data reliably.
-30. As an agent, I want a clear error when a service is not connected or a permission is missing, so that I can tell the person exactly what to tick in `haulmer-connect`.
+30. As an agent, I want a clear error when `gws` is missing, no account is connected, the session expired or a permission is missing, so that I can tell the person exactly what to click or tick in `haulmer-connect`. I also want a tool that opens the app for them.
 
 ### Company and admin
 
@@ -87,7 +87,7 @@ No Haulmer server is involved. Tokens never leave the person's machine.
   - `status()`: returns whether `gws` is available, which account is connected, which levels are currently granted, and the active config folder.
   - `save(selection)`: maps the selection to scopes, revokes first if any previously granted level was removed, then runs the `gws` login with the new scope set.
   - `revoke_all()`: revokes the refresh token at Google's revoke endpoint, then runs `gws auth logout`.
-  - Plus `install_skills()` for the agents button and `set_config_dir(path)` for the Advanced setting.
+  - Plus `set_config_dir(path)` for the Advanced setting. The core also builds the install prompt for the **Conectar un agente** window.
 - **Running `gws`:** every call runs with a cwd the app controls (gws loads `.env` from its cwd), stdin closed, and `NO_COLOR=1`.
 - **Login flow:** gws v0.22.5 prints the Google sign-in URL to stderr (stdout when a proxy env var is set) and does **not** open the browser. The core reads the first `https://accounts.google.com/` line from either stream and opens it with the system browser. gws waits for the loopback callback with no timeout, so the UI has a **Cancel** button that kills the process. Exit 0 prints a success JSON; exit 1-5 prints `{"error":{...}}` (2 = auth, 3 = validation).
 - **Status:** `status()` reads `gws auth status` (JSON: `user`, `scopes`, `token_valid`, `encrypted_credentials_exists`), because the `scopes` printed by login are the requested scopes, not the granted ones.
@@ -137,24 +137,36 @@ Write always implies Read for the same service.
 
 - Default: the `gws` default folder (`~/.config/gws`), so agents and `gws` skills work with zero setup.
 - If credentials already exist there and were not created by `haulmer-connect`, the app asks before replacing them. "No" leaves them untouched.
-- The folder is configurable under **Advanced** and persisted by the app. When it is not the default, the app passes it to every `gws` call and writes it into the installed skills.
-- **Key storage** (`GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND`): configurable under **Advanced** as `auto` (default), `keyring` or `file`. `auto` means `keyring` for the default folder and `file` for a custom folder. Reason: with `keyring`, gws v0.22.5 keeps one keychain item (service `gws-cli`, account `$USER`) for every config folder, so a custom folder can collide with another gws setup on the same machine. The resolved backend is passed to every `gws` call and written into the installed skills.
+- The folder is configurable under **Advanced** and persisted by the app. When it is not the default, the app passes it to every `gws` call, including the calls from the MCP server.
+- **Key storage** (`GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND`): configurable under **Advanced** as `auto` (default), `keyring` or `file`. `auto` means `keyring` for the default folder and `file` for a custom folder. Reason: with `keyring`, gws v0.22.5 keeps one keychain item (service `gws-cli`, account `$USER`) for every config folder, so a custom folder can collide with another gws setup on the same machine. The resolved backend is passed to every `gws` call.
 - "Credentials exist" means `<dir>/credentials.enc` or `<dir>/credentials.json` exists.
 
 ### Agents
 
 - Agents use `gws` commands and the `gws` skills from the pinned `gws` release.
-- **Install in my agents** copies the `gws` shared skill plus the skills for the enabled services into the agent skill folders it finds: the Claude Code user skills folder and the shared `~/.agents/skills` folder.
-- Skill source: the `skills/` folder of the gws repository tarball at tag `v0.22.5` (`https://github.com/googleworkspace/cli/archive/refs/tags/v0.22.5.tar.gz`). Skills are not in the release assets, and `gws generate-skills` is not pinned. Per service: `gws-shared` always; `gws-gmail*`, `gws-calendar*`, `gws-chat*`, `gws-meet`, `gws-drive*`. Skills are installed as siblings (each one reads `../gws-shared/SKILL.md`).
-- When the config folder or key storage is not the default, the installed `gws-shared/SKILL.md` gets an "Environment" section that tells agents to export `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` and `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` before every `gws` call. No wrapper on PATH.
+- The app never writes agent config files and never writes into agent skill folders. Agents connect themselves, or the person follows manual steps.
+- **Connecting an agent.** The tray item **Conectar un agente…** (one item, no submenu) opens a window with the same name. The window shows short steps, the **install prompt** in a `<pre>`, and a **Copiar** button. The prompt is shown even when no Google account is connected.
+- The core builds the prompt in Rust each time the window opens. It contains the absolute executable path (`std::env::current_exe()`) and these parts:
+  - Claude Code: `claude mcp add --scope user haulmer-connect -- "<exe>" mcp`, checked with `claude mcp get haulmer-connect`.
+  - Codex: `codex mcp add haulmer-connect -- "<exe>" mcp`, checked with `codex mcp get haulmer-connect`.
+  - Other agents (Hermes, Cursor): a generic stdio entry.
+  - Skills step (optional): `npx skills add`, pinned to gws v0.22.5, with the 19 skills of the "Services" table in gws `docs/skills.md` (`gws-shared` plus one core skill per Google API; no helpers, personas or recipes). The list does not depend on the granted services. If `npx` fails, the agent says so and points to the ZIP.
+  - Manual steps for Chat apps: Claude Desktop (Edit Config, with a JSON block) and ChatGPT desktop (Settings > MCP servers).
+  - A statement that Web chats (claude.ai, chatgpt.com) cannot work.
+- **Path checks (macOS).** If the app runs from a translocated path (`/AppTranslocation/`, so it was not moved to Applications), the window shows only an error that asks the person to move it. If the app runs from `/Volumes/` (the mounted DMG), the window shows a warning and the prompt.
+- **Skills come from two places:** the install prompt, or the Skills window (**Abrir skills**). The Skills window has the ZIP (**Descargar .zip**) and, under **Avanzado**, the same `npx skills add` command as the prompt. The ZIP covers only the granted services; the command always lists the core service skills.
+- Skill source: the `skills/` folder of the gws repository at tag `v0.22.5` (`https://github.com/googleworkspace/cli/archive/refs/tags/v0.22.5.tar.gz`). Skills are not in the release assets, and `gws generate-skills` is not pinned. Per service: `gws-shared` always; `gws-gmail*`, `gws-calendar*`, `gws-chat*`, `gws-meet`, `gws-drive*`. Each skill reads `../gws-shared/SKILL.md`, so the shared skill must be installed with them.
+- When the config folder or key storage is not the default, the `gws-shared/SKILL.md` in the ZIP gets an "Environment" section that tells agents to export `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` and `GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND` before every `gws` call. Skills installed with `npx skills add` are not edited. The MCP `gws` tool sets both variables itself.
 - Accepted risk: any agent that can run `gws` can also run `gws auth export --unmasked` and read the refresh token. This is accepted for the pilot and must be reviewed before company-wide rollout.
 
 ### MCP
 
 - `haulmer-connect mcp` runs an MCP server on stdin/stdout (newline-delimited JSON-RPC 2.0, no window). It uses the same folders as the app (home and `<data dir>/com.haulmer.connect`).
-- One tool, `gws`, with input `{args: string[]}`. It runs the pinned `gws` through the same environment as the app and returns stdout (stderr when stdout is empty); a non-zero exit sets `isError`. It never downloads gws: when missing it says to open the app and click Save.
+- Tool `gws`, with input `{args: string[]}`. It runs the pinned `gws` through the same environment as the app and returns stdout (stderr when stdout is empty); a non-zero exit sets `isError`. It never downloads gws.
+- **Errors tell the next step.** When a `gws` call fails, the server checks the app status and returns a Spanish message with the next step. The message quotes the exact UI labels (**Abrir configuración**, **Conectar** or **Guardar**). The cases are: `gws` missing, no account, expired session, and a missing permission for the service. In any other case the server returns the raw `gws` output, plus a hint about the Write level when the service is read-only.
+- Tool `open_haulmer_connect` (no arguments) opens the desktop app on its settings window. The error messages suggest it.
 - `auth` commands are blocked over MCP (`args[0] == "auth"`), so a model cannot call `gws auth export --unmasked` through this tool. Login and revoke stay in the app. This does not close the accepted risk above: an agent with a shell can still run `gws` directly.
-- Two config writers, behind buttons in the app, point the clients at the current executable with `args: ["mcp"]`: **Add to Claude Desktop** merges `mcpServers["haulmer-connect"]` into `claude_desktop_config.json` (invalid JSON is never overwritten); **Add to ChatGPT** writes the `[mcp_servers.haulmer-connect]` table in `~/.codex/config.toml`, shared by the ChatGPT desktop app, the Codex CLI and the Codex IDE extension. Running either twice replaces the entry.
+- **Single instance.** The app uses `tauri-plugin-single-instance` 2.5.5. A second launch (from Finder, the Start menu, or `open_haulmer_connect`) shows the settings window instead of starting a second tray icon. The MCP server launches the app with a `--show` argument. The `mcp` subcommand itself is dispatched before Tauri starts (`docs/adr/0001-mcp-dispatch-before-tauri.md`), so it never starts a second instance.
 
 ### Distribution
 
@@ -173,13 +185,14 @@ Every dependency was checked for deprecation, last release, popularity and known
 - React 19.3.1, Vite 8.3.8, Tailwind CSS 4.3.5: active, 0 known vulnerabilities in the current version
 - gws 0.22.5: 32k stars, 0 known vulnerabilities; README states it is **not an officially supported Google product**; last release March 2026
 - Rust crates approved by the owner 2026-11-16 (crates.io + osv.dev checked that day; 0 advisories, none yanked): serde 1.0.229, serde_json 1.0.154, thiserror 2.0.21, sha2 0.11.1, ureq 3.5.2, flate2 1.1.11, tar 0.4.46, zip 9.6.1, tauri-plugin-opener 2.7.3, tauri-plugin-dialog 2.8.4, tauri-plugin-updater 2.14.1, tauri-plugin-process 2.4.0; dev: tempfile 3.27.0. npm: @tauri-apps/api 2.12.5, @tauri-apps/plugin-opener 2.7.3, @tauri-apps/plugin-dialog 2.8.4, @tauri-apps/plugin-updater 2.14.1, @tauri-apps/plugin-process 2.4.0. The updater and process plugins were approved by the owner 2026-11-16 (crates.io, npm and osv.dev checked that day; 0 advisories). Any other dependency needs the same check and the owner's OK.
+- `tauri-plugin-single-instance` 2.5.5 approved by the owner 2026-11-18 (crates.io and osv.dev checked that day): released 2026-10-28, official tauri-apps plugin, about 12.8M downloads, 0 advisories. It supports macOS and Windows and needs Rust 1.90 or newer (the toolchain is 1.99.1). Rust only, no npm package.
 - Toolchain dependencies approved by the owner 2026-11-16: npm dev @tauri-apps/cli, @vitejs/plugin-react, @tailwindcss/vite, typescript 7.x, @types/react, @types/react-dom; cargo build-dep tauri-build.
 - Rejected: `reqwest` (21 dependencies, async; `ureq` is enough behind the HTTP port), `hex` (inline hex encoding instead), `arctic` (deprecated), `googleapis` npm (246 MB), `tiny_http` (no release since 2022)
 
 ## Testing Decisions
 
 - **Good tests check external behaviour only:** what the person sees and what the app does to the outside world (which `gws` commands run with which arguments and environment, which HTTP calls go to Google, which files are written). They do not check internal functions or data structures.
-- **One seam (confirmed by the owner 2026-11-16):** the public Rust core API (`status`, `save`, `revoke_all`, `install_skills`, `set_config_dir`) with two injected ports:
+- **One seam (confirmed by the owner 2026-11-16):** the public Rust core API (`status`, `save`, `revoke_all`, `set_config_dir`) with two injected ports:
   - a **process runner** for `gws` (a fake records the command, arguments and environment, and returns canned output and exit codes);
   - an **HTTP client** for the `gws` download, the checksum file and the revoke call (a fake returns canned responses).
   - a **real filesystem in a temp dir**: the home folder, the config folder and the app data folder are paths injected into the core, so tests check written files directly.
@@ -191,8 +204,10 @@ Every dependency was checked for deprecation, last release, popularity and known
   - `revoke_all` calls the revoke endpoint and `gws auth logout`, and still clears local credentials if Google is unreachable (reporting the error);
   - checksum mismatch on download stops the flow and never runs the binary;
   - existing credentials in the default folder trigger the replace question, and "No" changes nothing;
-  - a custom config folder is passed to every `gws` call and written into installed skills;
-  - `install_skills` copies only the shared skill plus the enabled services' skills.
+  - a custom config folder is passed to every `gws` call;
+  - the install prompt contains the executable path and the commands for Claude Code, Codex and other agents;
+  - the install prompt returns only an error for a `/AppTranslocation/` path, and a warning plus the prompt for a `/Volumes/` path;
+  - a failed MCP `gws` call returns the Spanish next-step message for each case (`gws` missing, no account, expired session, missing permission), and the raw output otherwise.
 - **Prior art:** none; this is a new repository.
 - **Manual pilot checks** (cannot be automated): real Google sign-in, Admin console log entries, and the success criteria in Further Notes.
 
@@ -205,6 +220,7 @@ Every dependency was checked for deprecation, last release, popularity and known
 - Usage statistics inside the app; admin visibility comes from the Workspace Admin console only.
 - Silent auto-install, code signing, Linux builds and Windows ARM builds (all for company-wide rollout).
 - Commands of our own for Google APIs; agents use `gws` commands.
+- Any app code that writes agent config files or agent skill folders.
 
 ## Further Notes
 
@@ -237,3 +253,4 @@ Full notes with source links: `docs/research/gws-spike.md`.
 - Google keeps at most 100 refresh tokens per account per client; the oldest is dropped silently.
 - A refresh token dies after revocation, 6 months unused, or a password change while Gmail scopes are granted. The person then saves again.
 - All users share the project's per-API quotas.
+- Windows: `gws.exe` runs without `CREATE_NO_WINDOW`, so a console window may flash on each `gws` call. Known follow-up, not in the single-instance and install-prompt change.

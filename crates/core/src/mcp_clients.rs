@@ -1,147 +1,79 @@
-//! Writes the haulmer-connect MCP server into the config of desktop AI apps.
+//! The Install prompt: the Spanish text a person pastes into an Agent (Claude Code, Codex, ...)
+//! so that the Agent registers `haulmer-connect mcp` as a local MCP server by itself.
 //! Spec: `docs/spec.md` "MCP".
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use serde::Serialize;
 use serde_json::json;
 
-use crate::{Core, CoreError};
+use crate::CoreError;
+use crate::skills::skills_add_command;
 
-/// Name of the server entry in every client config.
-const SERVER_NAME: &str = "haulmer-connect";
-
-/// Reads `path` as text; a missing file is an empty string.
+/// The text to copy, plus a warning to show when the path may not last.
 ///
 /// # Example
 ///
-/// ```ignore
-/// assert_eq!(read_or_empty("/nonexistent".as_ref()).unwrap(), "");
 /// ```
-fn read_or_empty(path: &Path) -> Result<String, CoreError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => Ok(text),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
-        Err(error) => Err(error.into()),
-    }
+/// use haulmer_connect_core::mcp_clients::InstallPrompt;
+/// let prompt = InstallPrompt { text: "...".into(), warning: None };
+/// assert_eq!(serde_json::to_string(&prompt).unwrap(), r#"{"text":"...","warning":null}"#);
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct InstallPrompt {
+    /// The prompt, in Spanish.
+    pub text: String,
+    /// A Spanish warning for the person; the prompt is still usable.
+    pub warning: Option<String>,
 }
 
-/// Writes `text` to `path`, creating the parent folder first.
+/// The Spanish Install prompt with `exe` as the MCP server command, and the core service skills
+/// ([`skills_add_command`]) as an optional last step.
+///
+/// Apple has no supported API to detect app translocation. So this function reads the path text.
+/// It fails for a translocated path. It warns for `/Volumes/`, which is the mounted disk image or
+/// a working external drive. It uses `exe` as given. Never canonicalize it: on Windows that
+/// returns `\\?\` paths.
 ///
 /// # Example
 ///
-/// ```ignore
-/// write_with_parent("/tmp/x/config.toml".as_ref(), "a = 1\n").unwrap();
 /// ```
-fn write_with_parent(path: &Path, text: &str) -> Result<(), CoreError> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+/// use haulmer_connect_core::mcp_clients::install_prompt;
+/// let installed = "/Applications/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// let prompt = install_prompt(installed.as_ref()).unwrap();
+/// assert!(prompt.text.contains(&format!("-- \"{installed}\" mcp")));
+/// assert!(prompt.warning.is_none());
+///
+/// let translocated = "/private/var/folders/x/T/AppTranslocation/AB12/d/haulmer-connect.app/Contents/MacOS/haulmer-connect";
+/// assert!(install_prompt(translocated.as_ref()).is_err());
+/// ```
+pub fn install_prompt(exe: &Path) -> Result<InstallPrompt, CoreError> {
+    let exe = exe.to_string_lossy();
+    if exe.contains("/AppTranslocation/") {
+        return Err(CoreError::UnstableExe(
+            "macOS está ejecutando haulmer-connect desde una carpeta temporal. Muévela a \
+             Aplicaciones, ábrela de nuevo y vuelve a abrir esta ventana."
+                .to_string(),
+        ));
     }
-    std::fs::write(path, text)?;
-    Ok(())
-}
-
-impl Core {
-    /// Adds `mcpServers["haulmer-connect"] = {command: exe, args: ["mcp"]}` to Claude Desktop's
-    /// config (macOS `<home>/Library/Application Support/Claude`, Windows
-    /// `<home>\AppData\Roaming\Claude`, else `<home>/.config/Claude`), keeping every other key.
-    /// A config that is not valid JSON is left untouched and returns [`CoreError::Parse`].
-    /// Returns the config file path.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use haulmer_connect_core::{Core, Paths};
-    /// # let home = tempfile::tempdir().unwrap();
-    /// # let core = Core::system(Paths { home: home.path().into(), app_data: "/a".into() });
-    /// let path = core.add_to_claude_desktop("/Applications/haulmer-connect".as_ref()).unwrap();
-    /// assert!(path.ends_with("claude_desktop_config.json"));
-    /// ```
-    pub fn add_to_claude_desktop(&self, exe: &Path) -> Result<PathBuf, CoreError> {
-        let mut folder = self.paths.home.clone();
-        if cfg!(target_os = "macos") {
-            folder.push("Library/Application Support");
-        } else if cfg!(windows) {
-            folder.push("AppData/Roaming");
-        } else {
-            folder.push(".config");
-        }
-        let path = folder.join("Claude").join("claude_desktop_config.json");
-
-        let text = read_or_empty(&path)?;
-        let mut config = json!({});
-        if !text.trim().is_empty() {
-            config = serde_json::from_str(&text).map_err(|error| {
-                CoreError::Parse(format!("{} is not valid JSON: {error}", path.display()))
-            })?;
-        }
-        let not_object = || CoreError::Parse(format!("{} is not a JSON object", path.display()));
-        let root = config.as_object_mut().ok_or_else(not_object)?;
-        let servers = root.entry("mcpServers").or_insert_with(|| json!({}));
-        let servers = servers.as_object_mut().ok_or_else(not_object)?;
-        servers.insert(
-            SERVER_NAME.to_string(),
-            json!({"command": exe.to_string_lossy(), "args": ["mcp"]}),
+    let mut warning = None;
+    if exe.starts_with("/Volumes/") {
+        warning = Some(
+            "Si abriste haulmer-connect desde la imagen de disco (.dmg), muévela a Aplicaciones \
+             y ábrela de nuevo: esta ruta deja de existir al expulsar el disco."
+                .to_string(),
         );
-
-        write_with_parent(&path, &(serde_json::to_string_pretty(&config)? + "\n"))?;
-        Ok(path)
     }
 
-    /// Writes the `[mcp_servers.haulmer-connect]` table into `<home>/.codex/config.toml`, the
-    /// file shared by the ChatGPT desktop app, the Codex CLI and the Codex IDE extension
-    /// (<https://learn.chatgpt.com/docs/extend/mcp>). An existing table is replaced (up to the
-    /// next `[` header line); otherwise it is appended. Everything else is kept.
-    /// Returns the config file path.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use haulmer_connect_core::{Core, Paths};
-    /// # let home = tempfile::tempdir().unwrap();
-    /// # let core = Core::system(Paths { home: home.path().into(), app_data: "/a".into() });
-    /// let path = core.add_to_chatgpt("/Applications/haulmer-connect".as_ref()).unwrap();
-    /// assert!(std::fs::read_to_string(path).unwrap().contains("[mcp_servers.haulmer-connect]"));
-    /// ```
-    pub fn add_to_chatgpt(&self, exe: &Path) -> Result<PathBuf, CoreError> {
-        let path = self.paths.home.join(".codex").join("config.toml");
-        let text = read_or_empty(&path)?;
+    let desktop_json = serde_json::to_string_pretty(&json!({
+        "mcpServers": {"haulmer-connect": {"command": exe, "args": ["mcp"]}}
+    }))?;
 
-        let exe = exe
-            .to_string_lossy()
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
-        let table = [
-            format!("[mcp_servers.{SERVER_NAME}]"),
-            format!("command = \"{exe}\""),
-            "args = [\"mcp\"]".to_string(),
-        ];
-
-        let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
-        let start = lines.iter().position(|line| line.trim() == table[0]);
-        match start {
-            Some(start) => {
-                let mut end = lines.len();
-                if let Some(next) = lines[start + 1..]
-                    .iter()
-                    .position(|line| line.trim_start().starts_with('['))
-                {
-                    end = start + 1 + next;
-                }
-                // Keep the blank lines that separate this table from the next one.
-                while end > start + 1 && lines[end - 1].trim().is_empty() {
-                    end -= 1;
-                }
-                lines.splice(start..end, table);
-            }
-            None => {
-                if !lines.is_empty() {
-                    lines.push(String::new());
-                }
-                lines.extend(table);
-            }
-        }
-
-        write_with_parent(&path, &(lines.join("\n") + "\n"))?;
-        Ok(path)
-    }
+    let text = format!(
+        include_str!("install_prompt.es.txt"),
+        exe = exe,
+        desktop_json = desktop_json,
+        skills_command = skills_add_command(),
+    );
+    Ok(InstallPrompt { text, warning })
 }
