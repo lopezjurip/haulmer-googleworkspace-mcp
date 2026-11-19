@@ -738,6 +738,9 @@ export default function App() {
     setBusy("save");
     setNotice(null);
     setAuthUrl(null);
+    // An empty selection makes `save` revoke everything instead of signing in.
+    const removedEverything =
+      selection.length === 0 && businessSelection.length === 0;
     try {
       let outcome = await invoke<SaveOutcome>("save", {
         selection,
@@ -769,11 +772,23 @@ export default function App() {
         setStatusError(null);
         setSelection(outcome.status.granted);
         setBusinessSelection(outcome.status.business_granted);
-        const text =
-          account === null
-            ? "Guardado. Se eliminó todo el acceso."
-            : `Guardado. Conectado como ${account}.`;
-        setNotice({ kind: "success", text });
+        if (account !== null) {
+          setNotice({
+            kind: "success",
+            text: `Guardado. Conectado como ${account}.`,
+          });
+        } else if (removedEverything) {
+          setNotice({
+            kind: "success",
+            text: "Guardado. Se eliminó todo el acceso.",
+          });
+        } else {
+          // The login finished but status found no account: never report it as a removal.
+          setNotice({
+            kind: "error",
+            text: `El inicio de sesión de Google terminó, pero no encuentro la cuenta en ${outcome.status.config_dir}. Vuelve a intentarlo.`,
+          });
+        }
       }
     } catch (error) {
       const text = ERROR_TEXT(error);

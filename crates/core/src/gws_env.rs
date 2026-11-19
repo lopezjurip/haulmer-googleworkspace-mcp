@@ -43,6 +43,13 @@ impl Core {
         std::fs::create_dir_all(&cwd)?;
 
         let mut command = CommandSpec::new(program, args, cwd);
+        // The folder always comes from the settings, never from the parent environment:
+        // `status` reads credentials from `active_config_dir`, so gws must use that same folder.
+        if settings.config_dir.is_none() {
+            command
+                .env_remove
+                .insert("GOOGLE_WORKSPACE_CLI_CONFIG_DIR".to_string());
+        }
         let mut set = |name: &str, value: &str| {
             command.env.insert(name.to_string(), value.to_string());
         };
