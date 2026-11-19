@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ask, save } from "@tauri-apps/plugin-dialog";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import adminIcon from "./assets/service-icons/admin.png";
 import businessIntelligenceIcon from "./assets/service-icons/business-intelligence.png";
 import calendarIcon from "./assets/service-icons/calendar.png";
@@ -31,7 +31,6 @@ import {
   ERROR_TEXT,
   HAS_BUSINESS_LEVEL,
   HAS_LEVEL,
-  type InstallPrompt,
   type RevokeOutcome,
   type SaveOutcome,
   type Selection,
@@ -39,6 +38,8 @@ import {
   type ServiceInfo,
   type Status,
 } from "./core";
+import InstallWindow from "./windows/InstallWindow";
+import SkillsWindow from "./windows/SkillsWindow";
 
 /** The one action running right now; controls stay disabled while one runs. */
 type Busy = "save" | "revoke" | "update" | null;
@@ -211,383 +212,6 @@ function AccessControl({
   );
 }
 
-const IS_SKILLS_WINDOW =
-  new URLSearchParams(window.location.search).get("window") === "skills";
-
-function formatInstallCommand(command: string) {
-  return command
-    .replace("npx -y skills add ", "npx -y skills add \\\n  ")
-    .replace(" -g -y -s ", " \\\n  -g -y \\\n  -s ");
-}
-
-/**
- * The skills window: a ZIP download of the granted services' skills, and the `npx skills add`
- * command for the core service skills (the same command as in the install prompt).
- *
- * @example
- * <SkillsWindow />
- */
-function SkillsWindow() {
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
-  const [commandCopied, setCommandCopied] = useState(false);
-  const [installCommand, setInstallCommand] = useState<string | null>(null);
-
-  useEffect(() => {
-    invoke<string>("skills_install_command")
-      .then(setInstallCommand)
-      .catch((error) => setNotice({ kind: "error", text: ERROR_TEXT(error) }));
-  }, []);
-
-  async function downloadSkills() {
-    setNotice(null);
-    setDownloadNotice(null);
-    const path = await save({
-      defaultPath: "haulmer-googleworkspace-mcp-skills.zip",
-      filters: [{ name: "ZIP", extensions: ["zip"] }],
-    });
-    if (path === null) {
-      return;
-    }
-    setBusy(true);
-    try {
-      await invoke("export_skills_zip", { path });
-      setDownloadNotice("Skills descargadas correctamente.");
-    } catch (error) {
-      setNotice({ kind: "error", text: ERROR_TEXT(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /**
-   * Copies the install command and shows "Copiado" for a moment.
-   *
-   * @example
-   * await copyCommand();
-   */
-  async function copyCommand() {
-    if (installCommand === null) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(installCommand);
-      setCommandCopied(true);
-      window.setTimeout(() => setCommandCopied(false), 1800);
-      setNotice({ kind: "success", text: "Comando copiado al portapapeles." });
-    } catch (error) {
-      setNotice({ kind: "error", text: ERROR_TEXT(error) });
-    }
-  }
-
-  return (
-    <main className="min-h-screen bg-slate-50 p-6 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <div className="mx-auto max-w-xl space-y-5">
-        <header>
-          <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-            haulmer-googleworkspace-mcp
-          </p>
-          <h1 className="text-2xl font-semibold">Skills</h1>
-        </header>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="font-semibold">Descargar skills</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-            Descarga un ZIP con las skills correspondientes a los permisos
-            configurados.
-          </p>
-          <div className="mt-4 flex items-center gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={downloadSkills}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
-              {busy ? "Preparando ZIP…" : "Descargar .zip"}
-            </button>
-            {downloadNotice !== null && (
-              <span className="text-xs text-emerald-700 dark:text-emerald-400">
-                {downloadNotice}
-              </span>
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="font-semibold">Avanzado</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">
-            Instala las skills principales de Google Workspace con el gestor
-            oficial.
-          </p>
-          {installCommand !== null && (
-            <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-100 p-3 dark:bg-zinc-800">
-              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words text-xs">
-                {formatInstallCommand(installCommand)}
-              </pre>
-              <button
-                type="button"
-                onClick={copyCommand}
-                className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
-                  commandCopied
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                    : "border-slate-300 hover:bg-white dark:border-zinc-600 dark:hover:bg-zinc-700"
-                }`}
-              >
-                {commandCopied ? "Copiado" : "Copiar"}
-              </button>
-            </div>
-          )}
-        </section>
-
-        {notice !== null && (
-          <p
-            role="status"
-            className={
-              notice.kind === "error"
-                ? "text-sm text-red-600 dark:text-red-400"
-                : "text-sm text-emerald-700 dark:text-emerald-400"
-            }
-          >
-            {notice.text}
-          </p>
-        )}
-      </div>
-    </main>
-  );
-}
-
-const IS_INSTALL_WINDOW =
-  new URLSearchParams(window.location.search).get("window") === "install";
-
-/**
- * The state of the one-click install button in the install window.
- *
- * @example
- * const state: InstallState = { kind: "error", text: "No hay una app para abrirlo." };
- */
-type InstallState =
-  | { kind: "idle" }
-  | { kind: "running" }
-  | { kind: "done" }
-  | { kind: "error"; text: string };
-
-/**
- * The install window: a one-click MCP extension install, and the install prompt that a person
- * pastes into an agent. It rebuilds the prompt on mount and each time the tray shows the window
- * again, and clears the result of the one-click install.
- *
- * @example
- * <InstallWindow />
- */
-function InstallWindow() {
-  const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [copyError, setCopyError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [installState, setInstallState] = useState<InstallState>({
-    kind: "idle",
-  });
-
-  const latestRequest = useRef(0);
-
-  useEffect(() => {
-    /**
-     * Asks the backend for a fresh prompt. A failure replaces the prompt with its error text. A
-     * response applies only if no newer request started meanwhile.
-     *
-     * @example
-     * await loadPrompt();
-     */
-    async function loadPrompt() {
-      latestRequest.current += 1;
-      const request = latestRequest.current;
-      try {
-        const result = await invoke<InstallPrompt>("install_prompt");
-        if (request === latestRequest.current) {
-          setPrompt(result);
-          setLoadError(null);
-        }
-      } catch (error) {
-        if (request === latestRequest.current) {
-          setPrompt(null);
-          setLoadError(ERROR_TEXT(error));
-        }
-      }
-    }
-
-    /**
-     * Back to the loading state, so an old prompt or error never shows, then fetches again.
-     *
-     * @example
-     * onShown(); // when the tray shows the window again
-     */
-    function onShown() {
-      setPrompt(null);
-      setLoadError(null);
-      setCopyError(null);
-      setCopied(false);
-      setInstallState({ kind: "idle" });
-      loadPrompt();
-    }
-
-    loadPrompt();
-    const unlisten = listen("install-window-shown", onShown);
-    return () => {
-      unlisten.then((stop) => stop());
-    };
-  }, []);
-
-  /**
-   * Copies the prompt text and shows "Copiado" for a moment.
-   *
-   * @example
-   * await copyPrompt();
-   */
-  async function copyPrompt() {
-    if (prompt === null) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(prompt.text);
-      setCopyError(null);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch (error) {
-      setCopyError(ERROR_TEXT(error));
-    }
-  }
-
-  /**
-   * Builds the MCP extension and opens it with the default app. Shows the result or the error.
-   * The `/Volumes/` warning that the command returns is ignored: the prompt's warning already
-   * shows it.
-   *
-   * @example
-   * await installMcp();
-   */
-  async function installMcp() {
-    setInstallState({ kind: "running" });
-    try {
-      await invoke<string | null>("install_mcp_extension");
-      setInstallState({ kind: "done" });
-    } catch (error) {
-      setInstallState({ kind: "error", text: ERROR_TEXT(error) });
-    }
-  }
-
-  return (
-    <main className="min-h-screen bg-slate-50 p-6 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <div className="mx-auto max-w-xl space-y-5">
-        <header>
-          <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-            haulmer-googleworkspace-mcp
-          </p>
-          <h1 className="text-2xl font-semibold">Conectar un agente</h1>
-        </header>
-
-        {loadError !== null && (
-          <p
-            role="alert"
-            className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-          >
-            {loadError}
-          </p>
-        )}
-
-        {prompt !== null && (
-          <>
-            {prompt.warning !== null && (
-              <p
-                role="status"
-                className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
-              >
-                {prompt.warning}
-              </p>
-            )}
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <h2 className="font-semibold">Instalación en un clic</h2>
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={installState.kind === "running"}
-                  onClick={installMcp}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-                >
-                  {installState.kind === "running"
-                    ? "Abriendo…"
-                    : "Instalar MCP"}
-                </button>
-                {installState.kind === "done" && (
-                  <span
-                    role="status"
-                    className="text-xs text-emerald-700 dark:text-emerald-400"
-                  >
-                    Listo. Sigue los pasos en tu app de IA.
-                  </span>
-                )}
-                {installState.kind === "error" && (
-                  <span
-                    role="alert"
-                    className="text-xs text-red-600 dark:text-red-400"
-                  >
-                    {installState.text}
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
-                Se abre tu app de IA (por ejemplo, Claude Desktop). Ahí pulsa
-                "Instalar".
-              </p>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <h2 className="font-semibold">
-                Con un prompt (Claude Code, Codex y otros agentes)
-              </h2>
-              <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600 dark:text-zinc-400">
-                <li>Copia el prompt.</li>
-                <li>
-                  Pégalo en tu agente (Claude Code, Codex, Hermes, Cursor…) o en
-                  ChatGPT de escritorio.
-                </li>
-                <li>
-                  Sigue sus pasos. No funciona en claude.ai ni en chatgpt.com.
-                </li>
-              </ol>
-              <pre className="mt-4 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-100 p-3 font-mono text-xs dark:bg-zinc-800">
-                {prompt.text}
-              </pre>
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={copyPrompt}
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    copied
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "border-slate-300 hover:bg-slate-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  {copied ? "Copiado" : "Copiar"}
-                </button>
-                {copyError !== null && (
-                  <span
-                    role="alert"
-                    className="text-xs text-red-600 dark:text-red-400"
-                  >
-                    {copyError}
-                  </span>
-                )}
-              </div>
-            </section>
-          </>
-        )}
-      </div>
-    </main>
-  );
-}
-
 /**
  * The settings window of haulmer-googleworkspace-mcp: account, services, Save, Revoke all and the Advanced
  * settings. It also routes the skills and install windows to their own components.
@@ -596,6 +220,7 @@ function InstallWindow() {
  * <App />
  */
 export default function App() {
+  const windowName = new URLSearchParams(window.location.search).get("window");
   const [status, setStatus] = useState<Status | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<ServiceInfo[]>([]);
@@ -614,7 +239,7 @@ export default function App() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: this startup effect intentionally runs once.
   useEffect(() => {
-    if (IS_SKILLS_WINDOW || IS_INSTALL_WINDOW) {
+    if (windowName === "skills" || windowName === "install") {
       return;
     }
     const unlisten = listen<string>("auth-url", (event) =>
@@ -625,13 +250,12 @@ export default function App() {
     return () => {
       unlisten.then((stop) => stop());
     };
-  }, []);
-
-  if (IS_SKILLS_WINDOW) {
+  }, [windowName]);
+  if (windowName === "skills") {
     return <SkillsWindow />;
   }
 
-  if (IS_INSTALL_WINDOW) {
+  if (windowName === "install") {
     return <InstallWindow />;
   }
 
