@@ -1,7 +1,8 @@
 //! Shared-OAuth business connectors.
 //!
-//! The first connector is the authenticated YouTube channel lookup. It uses the
-//! refresh token already managed by `gws`, then keeps the access token in memory.
+//! The business connector catalogue lives in [`crate::scopes`]. This module owns
+//! the active YouTube adapter; the remaining catalogue entries are planned
+//! connectors and intentionally do not have implementations here yet.
 
 use std::path::Path;
 
@@ -29,13 +30,26 @@ impl Core {
     /// # Ok::<(), haulmer_googleworkspace_mcp_core::CoreError>(())
     /// ```
     pub fn youtube_channel(&self) -> Result<Value, CoreError> {
-        let gws = self.find_gws()?.ok_or_else(|| CoreError::Gws {
+        YoutubeConnector { core: self }.fetch()
+    }
+}
+
+struct YoutubeConnector<'a> {
+    core: &'a Core,
+}
+
+impl YoutubeConnector<'_> {
+    fn fetch(&self) -> Result<Value, CoreError> {
+        let gws = self.core.find_gws()?.ok_or_else(|| CoreError::Gws {
             exit_code: 2,
             message: "gws is not installed; open haulmer-googleworkspace-mcp and click Save".into(),
         })?;
         let refresh_token = self.refresh_token(&gws)?;
         let access_token = self.exchange_refresh_token(&refresh_token)?;
-        let response = self.http.get_bearer(YOUTUBE_CHANNELS_URL, &access_token)?;
+        let response = self
+            .core
+            .http
+            .get_bearer(YOUTUBE_CHANNELS_URL, &access_token)?;
         if response.status != 200 {
             return Err(CoreError::Http(format!(
                 "YouTube answered HTTP {}: {}",
@@ -47,9 +61,11 @@ impl Core {
     }
 
     fn refresh_token(&self, gws: &Path) -> Result<String, CoreError> {
-        let output = self
-            .runner
-            .run(&self.gws_command(gws, &["auth", "export", "--unmasked"])?)?;
+        let output = self.core.runner.run(
+            &self
+                .core
+                .gws_command(gws, &["auth", "export", "--unmasked"])?,
+        )?;
         let json: Value = serde_json::from_str(&output.stdout)?;
         json["refresh_token"]
             .as_str()
@@ -62,7 +78,7 @@ impl Core {
     }
 
     fn exchange_refresh_token(&self, refresh_token: &str) -> Result<String, CoreError> {
-        let response = self.http.post_form(
+        let response = self.core.http.post_form(
             TOKEN_URL,
             &[
                 ("client_id", CLIENT_ID),
