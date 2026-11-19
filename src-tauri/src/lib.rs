@@ -12,6 +12,8 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent, image::Image, tray::TrayIconBuilder};
 use tauri_plugin_opener::OpenerExt;
 
+mod notify;
+use notify::{notify, revoke_text, save_text};
 mod tray;
 use tray::{TrayState, refresh_tray_menu, set_tray_menu};
 
@@ -76,6 +78,13 @@ fn save(
         Ok(SaveOutcome::NeedsReplaceConfirmation) => refresh_tray_menu(&app, &core),
         Err(_) => set_tray_menu(&app, TrayState::Error),
     }
+    let removed_everything = selection.is_empty()
+        && business_selection
+            .as_ref()
+            .is_none_or(|business| business.is_empty());
+    if let Some(text) = save_text(&result, removed_everything) {
+        notify(&app, &text);
+    }
     result
 }
 
@@ -108,6 +117,9 @@ fn revoke_all(
 ) -> Result<RevokeOutcome, CoreError> {
     let result = core.revoke_all(confirm_foreign);
     refresh_tray_menu(&app, &core);
+    if let Some(text) = revoke_text(&result) {
+        notify(&app, &text);
+    }
     result
 }
 
@@ -268,6 +280,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
