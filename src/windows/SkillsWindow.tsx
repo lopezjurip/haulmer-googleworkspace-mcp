@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
+import haulmerIsotipo from "../assets/haulmer-isotipo.svg";
 import { ERROR_TEXT } from "../core";
 
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
@@ -70,7 +71,12 @@ export default function SkillsWindow() {
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="mx-auto max-w-xl space-y-5">
         <header>
-          <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
+          <img
+            src={haulmerIsotipo}
+            alt="Haulmer"
+            className="h-9 w-9 rounded-lg bg-zinc-900 p-1.5"
+          />
+          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-zinc-400">
             haulmer-googleworkspace-mcp
           </p>
           <h1 className="text-2xl font-semibold">Skills</h1>

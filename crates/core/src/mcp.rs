@@ -16,7 +16,7 @@ const TOOL_DESCRIPTION: &str = "Run any granted Google Workspace CLI (gws) comma
 /// Text of the YouTube MCP tool, shown to the model.
 const YOUTUBE_TOOL_DESCRIPTION: &str = "Read the authenticated user's YouTube channel through the connected Google account. Requires YouTube read permission in haulmer-googleworkspace-mcp. Takes no arguments.";
 const BUSINESS_TOOL_DESCRIPTION: &str = "Call a granted Google business connector over its official API. Use connector (youtube, google-ads, analytics, search-console, business-profile or merchant-center), an HTTP method, a relative API path and an optional JSON body. GET requires Read; other methods require Write. Inspect the connector's official API before writing.";
-const SERVER_ICON_URL: &str = "https://github.com/lopezjurip/haulmer-googleworkspace-mcp/raw/feat/save-revoke-notifications/src-tauri/icons/tray-icon.svg";
+const SERVER_ICON_URL: &str = "https://github.com/lopezjurip/haulmer-googleworkspace-mcp/raw/main/src-tauri/icons/tray-icon.svg";
 
 /// Text of the `status` tool, shown to the model.
 const STATUS_TOOL_DESCRIPTION: &str = "Show which Google account is connected to haulmer-googleworkspace-mcp, whether its session is valid, and which Google services haulmer-googleworkspace-mcp may use, at the Read or Write level. Read-only; takes no arguments. Call it first, before `gws`, to know what is allowed and to avoid commands that would fail.";

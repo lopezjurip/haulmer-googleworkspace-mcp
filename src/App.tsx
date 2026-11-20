@@ -5,6 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useEffect, useRef, useState } from "react";
+import haulmerIsotipo from "./assets/haulmer-isotipo.svg";
 import adminIcon from "./assets/service-icons/admin.png";
 import businessIntelligenceIcon from "./assets/service-icons/business-intelligence.png";
 import calendarIcon from "./assets/service-icons/calendar.png";
@@ -665,10 +666,17 @@ export default function App() {
         )}
 
         <header>
-          <div className="flex items-baseline justify-between gap-3">
-            <h1 className="text-xl font-semibold">
-              haulmer-googleworkspace-mcp
-            </h1>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <img
+                src={haulmerIsotipo}
+                alt="Haulmer"
+                className="h-9 w-9 rounded-lg bg-zinc-900 p-1.5"
+              />
+              <h1 className="text-xl font-semibold">
+                haulmer-googleworkspace-mcp
+              </h1>
+            </div>
             <button
               type="button"
               className="shrink-0 text-xs text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:text-zinc-100"

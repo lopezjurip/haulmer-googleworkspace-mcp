@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
+import haulmerIsotipo from "../assets/haulmer-isotipo.svg";
 import { ERROR_TEXT, type InstallPrompt } from "../core";
 
 type InstallState =
@@ -97,7 +98,12 @@ export default function InstallWindow() {
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="mx-auto max-w-xl space-y-5">
         <header>
-          <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
+          <img
+            src={haulmerIsotipo}
+            alt="Haulmer"
+            className="h-9 w-9 rounded-lg bg-zinc-900 p-1.5"
+          />
+          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-zinc-400">
             haulmer-googleworkspace-mcp
           </p>
           <h1 className="text-2xl font-semibold">Conectar un agente</h1>
