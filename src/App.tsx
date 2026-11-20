@@ -42,7 +42,7 @@ import InstallWindow from "./windows/InstallWindow";
 import SkillsWindow from "./windows/SkillsWindow";
 
 /** The one action running right now; controls stay disabled while one runs. */
-type Busy = "save" | "revoke" | "update" | null;
+type Busy = "save" | "revoke" | "update" | "refresh" | null;
 
 /** Feedback shown after an action. */
 type Notice = { kind: "success" | "info" | "error"; text: string } | null;
@@ -350,6 +350,21 @@ export default function App() {
   }
 
   /**
+   * Re-reads the token's effective permissions and resets the selection to them.
+   *
+   * @example
+   * await handleRefresh();
+   */
+  async function handleRefresh() {
+    setBusy("refresh");
+    try {
+      await loadAll();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
    * Reloads only the status (after Revoke all or an Advanced change).
    *
    * @example
@@ -650,7 +665,19 @@ export default function App() {
         )}
 
         <header>
-          <h1 className="text-xl font-semibold">haulmer-googleworkspace-mcp</h1>
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-xl font-semibold">
+              haulmer-googleworkspace-mcp
+            </h1>
+            <button
+              type="button"
+              className="shrink-0 text-xs text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:text-zinc-100"
+              disabled={disabled}
+              onClick={handleRefresh}
+            >
+              {busy === "refresh" ? "Refrescando…" : "Refrescar"}
+            </button>
+          </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
             Conecta tus agentes de IA a Google Workspace.
           </p>
