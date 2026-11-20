@@ -215,6 +215,9 @@ fn add_builtin_workspace_skills(skills: &mut BTreeMap<String, SkillFiles>) {
         Service::Slides,
         Service::Forms,
         Service::Tasks,
+        Service::AdminDirectory,
+        Service::AdminGroups,
+        Service::CloudIdentity,
     ] {
         let name = format!("gws-{}", service.slug());
         skills.entry(name.clone()).or_insert_with(|| {
@@ -310,7 +313,9 @@ fn extract_skills(archive: &[u8]) -> Result<BTreeMap<String, SkillFiles>, CoreEr
 
 #[cfg(test)]
 mod tests {
-    use super::SERVICE_SKILLS;
+    use std::collections::BTreeMap;
+
+    use super::{SERVICE_SKILLS, add_builtin_workspace_skills};
 
     /// `npx skills add -s` takes exact names, so a repeated or misspelled one is a bug.
     #[test]
@@ -321,6 +326,16 @@ mod tests {
                 !SERVICE_SKILLS[index + 1..].contains(name),
                 "{name} is listed twice"
             );
+        }
+    }
+
+    #[test]
+    fn builtin_skills_cover_admin_services_missing_from_the_pinned_archive() {
+        let mut skills = BTreeMap::new();
+        add_builtin_workspace_skills(&mut skills);
+
+        for service in ["admin-directory", "admin-groups", "cloud-identity"] {
+            assert!(skills.contains_key(&format!("gws-{service}")));
         }
     }
 }

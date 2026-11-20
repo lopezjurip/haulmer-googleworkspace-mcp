@@ -11,7 +11,7 @@ use crate::{Core, CoreError, Level, Service, Status, scopes};
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// Text of the `gws` tool, shown to the model.
-const TOOL_DESCRIPTION: &str = "Run a Google Workspace CLI (gws) command on the user's Google account and return its JSON output. Example args: [\"gmail\",\"+triage\"], [\"calendar\",\"+agenda\"]. Discover methods with [\"schema\",\"gmail.users.messages.list\"]. If a call fails, follow the steps in the error message (it may suggest open_haulmer_googleworkspace_mcp).";
+const TOOL_DESCRIPTION: &str = "Run any granted Google Workspace CLI (gws) command on the user's Google account and return its JSON output, including People and Admin Directory. Example args: [\"gmail\",\"+triage\"], [\"calendar\",\"+agenda\"], [\"people\",\"+people\",\"searchContacts\"], or [\"admin\",\"directory\",\"users\",\"update\"]. Discover methods with [\"schema\",\"people.people.searchContacts\"] or [\"schema\",\"admin.directory.users.update\"]. If a call fails, follow the steps in the error message (it may suggest open_haulmer_googleworkspace_mcp).";
 const SERVER_ICON_URL: &str = "https://github.com/lopezjurip/haulmer-googleworkspace-mcp/raw/feat/save-revoke-notifications/src-tauri/icons/tray-icon.svg";
 
 /// Text of the `status` tool, shown to the model.
