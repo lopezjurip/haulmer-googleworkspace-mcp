@@ -70,6 +70,10 @@ fn initialize_and_list_tools() {
         replies[0]["result"]["serverInfo"]["name"],
         "haulmer-googleworkspace-mcp"
     );
+    assert_eq!(
+        replies[0]["result"]["serverInfo"]["icons"][0]["src"],
+        "https://github.com/lopezjurip/haulmer-googleworkspace-mcp/raw/feat/save-revoke-notifications/src-tauri/icons/tray-icon.svg"
+    );
     let tools = &replies[1]["result"]["tools"];
     assert_eq!(tools[0]["name"], "gws");
     assert_eq!(tools[0]["inputSchema"]["required"], json!(["args"]));

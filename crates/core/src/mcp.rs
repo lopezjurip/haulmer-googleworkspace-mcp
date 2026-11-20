@@ -12,6 +12,7 @@ const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// Text of the `gws` tool, shown to the model.
 const TOOL_DESCRIPTION: &str = "Run a Google Workspace CLI (gws) command on the user's Google account and return its JSON output. Example args: [\"gmail\",\"+triage\"], [\"calendar\",\"+agenda\"]. Discover methods with [\"schema\",\"gmail.users.messages.list\"]. If a call fails, follow the steps in the error message (it may suggest open_haulmer_googleworkspace_mcp).";
+const SERVER_ICON_URL: &str = "https://github.com/lopezjurip/haulmer-googleworkspace-mcp/raw/feat/save-revoke-notifications/src-tauri/icons/tray-icon.svg";
 
 /// Text of the `status` tool, shown to the model.
 const STATUS_TOOL_DESCRIPTION: &str = "Show which Google account is connected to haulmer-googleworkspace-mcp, whether its session is valid, and which Google services haulmer-googleworkspace-mcp may use, at the Read or Write level. Read-only; takes no arguments. Call it first, before `gws`, to know what is allowed and to avoid commands that would fail.";
@@ -91,7 +92,16 @@ fn handle(
             Ok(json!({
                 "protocolVersion": protocol_version,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "haulmer-googleworkspace-mcp", "version": env!("CARGO_PKG_VERSION")},
+                "serverInfo": {
+                    "name": "haulmer-googleworkspace-mcp",
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "icons": [{
+                        "src": SERVER_ICON_URL,
+                        "mimeType": "image/svg+xml",
+                        "sizes": ["any"],
+                        "theme": "dark",
+                    }],
+                },
             }))
         }
         "ping" => Ok(json!({})),
