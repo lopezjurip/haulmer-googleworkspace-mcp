@@ -1,6 +1,7 @@
 use haulmer_googleworkspace_mcp_core::{BusinessConnector, Core, Level, Service, Status};
 use tauri::{
     AppHandle,
+    image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
 };
 
@@ -26,6 +27,29 @@ pub(crate) fn set_tray_menu(app: &AppHandle, state: TrayState) {
     let Some(tray) = app.tray_by_id("main") else {
         return;
     };
+
+    let connecting = matches!(state, TrayState::Connecting);
+    let icon_bytes: &[u8] = if connecting {
+        &include_bytes!("../icons/tray-icon-busy.png")[..]
+    } else {
+        &include_bytes!("../icons/tray-icon.png")[..]
+    };
+    match Image::from_bytes(icon_bytes) {
+        Ok(icon) => {
+            if let Err(error) = tray.set_icon(Some(icon)) {
+                eprintln!("Could not update tray icon: {error}");
+                return;
+            }
+            if let Err(error) = tray.set_icon_as_template(!connecting) {
+                eprintln!("Could not update tray icon template mode: {error}");
+                return;
+            }
+        }
+        Err(error) => {
+            eprintln!("Could not load tray icon: {error}");
+            return;
+        }
+    }
 
     let presentation = presentation(&state);
     let status_item = match MenuItemBuilder::with_id("status", presentation.status_text)
@@ -131,7 +155,7 @@ struct TrayPresentation {
 fn presentation(state: &TrayState) -> TrayPresentation {
     match state {
         TrayState::Connecting => TrayPresentation {
-            status_text: "🟡 Conectando…".to_string(),
+            status_text: "🟢 Operación en curso…".to_string(),
             account_action: "open",
             account_text: "Abrir haulmer-googleworkspace-mcp".to_string(),
             permissions: Vec::new(),
