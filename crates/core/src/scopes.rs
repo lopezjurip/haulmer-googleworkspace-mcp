@@ -1,6 +1,8 @@
 //! T02 — scope catalogue: selection <-> Google scopes, defaults and UI labels.
 //! Scope catalogue for Workspace and business connectors.
 
+use std::collections::HashSet;
+
 use crate::{
     BusinessConnector, BusinessConnectorInfo, BusinessSelection, Level, Selection, Service,
     ServiceCategory, ServiceInfo,
@@ -39,13 +41,7 @@ pub fn default_selection() -> Selection {
 
 /// Whether the catalogue can safely request a Write level for this service.
 fn write_supported(service: Service) -> bool {
-    !matches!(
-        service,
-        Service::AdminReports
-            | Service::AdminDirectory
-            | Service::AdminGroups
-            | Service::CloudIdentity
-    )
+    !matches!(service, Service::AdminReports)
 }
 
 /// Normalises a selection: Write implies Read for the same service.
@@ -71,20 +67,22 @@ pub fn normalize(selection: &Selection) -> Selection {
 ///
 /// ```
 /// use haulmer_googleworkspace_mcp_core::{scopes, Level, Selection, Service};
-/// let urls = scopes::scopes_for(&Selection::from_levels([(Service::Drive, Level::Read)]));
-/// assert_eq!(urls, ["https://www.googleapis.com/auth/drive.readonly"]);
+/// let urls = scopes::scopes_for(&Selection::from_levels([(Service::Tasks, Level::Read)]));
+/// assert_eq!(urls, ["https://www.googleapis.com/auth/tasks.readonly"]);
 /// ```
 pub fn scopes_for(selection: &Selection) -> Vec<String> {
+    let mut seen = HashSet::new();
     normalize(selection)
         .iter()
         .filter(|level| level.level == Level::Read || write_supported(level.service))
         .flat_map(|level| level_scopes(level.service, level.level))
-        .map(|short| format!("{SCOPE_PREFIX}{short}"))
+        .map(scope_url)
+        .filter(|scope| seen.insert(scope.clone()))
         .collect()
 }
 
-/// Short scope names (after [`SCOPE_PREFIX`]) of one service level: the spec table.
-/// Levels never share a scope, so concatenating levels yields no duplicates.
+/// Scope names of one service level: the spec table. Entries may be full URLs
+/// when Google uses a scope outside the standard `SCOPE_PREFIX`.
 ///
 /// # Example
 ///
@@ -92,42 +90,126 @@ pub fn scopes_for(selection: &Selection) -> Vec<String> {
 /// assert_eq!(level_scopes(Service::Drive, Level::Write), ["drive"]);
 /// ```
 fn level_scopes(service: Service, level: Level) -> &'static [&'static str] {
+    // Read: every read-only scope of the service's APIs. Write: every other user-facing scope
+    // that a broader scope does not already cover (e.g. `drive` covers `drive.file`).
     match (service, level) {
         (Service::Gmail, Level::Read) => &["gmail.readonly"],
-        (Service::Gmail, Level::Write) => &["gmail.send", "gmail.modify"],
+        (Service::Gmail, Level::Write) => &[
+            "https://mail.google.com/",
+            "gmail.settings.basic",
+            "gmail.settings.sharing",
+        ],
         (Service::Calendar, Level::Read) => &["calendar.readonly"],
-        (Service::Calendar, Level::Write) => &["calendar.events"],
+        (Service::Calendar, Level::Write) => &["calendar"],
         (Service::Chat, Level::Read) => &[
             "chat.spaces.readonly",
             "chat.messages.readonly",
             "chat.memberships.readonly",
+            "chat.messages.reactions.readonly",
             "chat.users.readstate.readonly",
+            "chat.users.sections.readonly",
+            "chat.users.availability.readonly",
+            "chat.spaces.pins.readonly",
+            "chat.customemojis.readonly",
+            "chat.admin.spaces.readonly",
+            "chat.admin.memberships.readonly",
         ],
-        (Service::Chat, Level::Write) => &["chat.messages"],
+        (Service::Chat, Level::Write) => &[
+            "chat.spaces",
+            "chat.memberships",
+            "chat.messages",
+            "chat.messages.reactions",
+            "chat.users.readstate",
+            "chat.users.sections",
+            "chat.users.availability",
+            "chat.users.spacesettings",
+            "chat.spaces.pins",
+            "chat.customemojis",
+            "chat.delete",
+            "chat.import",
+            "chat.admin.spaces",
+            "chat.admin.memberships",
+            "chat.admin.delete",
+        ],
         (Service::Meet, Level::Read) => &["meetings.space.readonly"],
-        (Service::Meet, Level::Write) => &["meetings.space.created"],
-        (Service::Drive, Level::Read) => &["drive.readonly"],
-        (Service::Drive, Level::Write) => &["drive"],
+        (Service::Meet, Level::Write) => &["meetings.space.created", "meetings.space.settings"],
+        (Service::Drive, Level::Read) => &["drive.readonly", "drive.apps.readonly"],
+        (Service::Drive, Level::Write) => &["drive", "drive.scripts"],
         (Service::Docs, Level::Read) => &["documents.readonly"],
         (Service::Docs, Level::Write) => &["documents"],
         (Service::Sheets, Level::Read) => &["spreadsheets.readonly"],
         (Service::Sheets, Level::Write) => &["spreadsheets"],
         (Service::Slides, Level::Read) => &["presentations.readonly"],
         (Service::Slides, Level::Write) => &["presentations"],
-        (Service::Forms, Level::Read) => &["forms.body.readonly"],
+        (Service::Forms, Level::Read) => &["forms.body.readonly", "forms.responses.readonly"],
         (Service::Forms, Level::Write) => &["forms.body"],
         (Service::Tasks, Level::Read) => &["tasks.readonly"],
         (Service::Tasks, Level::Write) => &["tasks"],
-        (Service::People, Level::Read) => &["contacts.readonly"],
+        (Service::People, Level::Read) => &[
+            "contacts.readonly",
+            "contacts.other.readonly",
+            "directory.readonly",
+            "user.addresses.read",
+            "user.birthday.read",
+            "user.emails.read",
+            "user.gender.read",
+            "user.organization.read",
+            "user.phonenumbers.read",
+        ],
         (Service::People, Level::Write) => &["contacts"],
-        (Service::AdminReports, Level::Read) => &["admin.reports.audit.readonly"],
+        (Service::AdminReports, Level::Read) => &[
+            "admin.reports.audit.readonly",
+            "admin.reports.usage.readonly",
+        ],
         (Service::AdminReports, Level::Write) => &["admin.reports.audit.readonly"],
-        (Service::AdminDirectory, Level::Read) => &["admin.directory.user.readonly"],
-        (Service::AdminDirectory, Level::Write) => &["admin.directory.user.readonly"],
-        (Service::AdminGroups, Level::Read) => &["admin.directory.group.readonly"],
-        (Service::AdminGroups, Level::Write) => &["admin.directory.group.readonly"],
-        (Service::CloudIdentity, Level::Read) => &["cloud-identity.groups.readonly"],
-        (Service::CloudIdentity, Level::Write) => &["cloud-identity.groups.readonly"],
+        (Service::AdminDirectory, Level::Read) => &[
+            "admin.directory.user.readonly",
+            "admin.directory.user.alias.readonly",
+            "admin.directory.orgunit.readonly",
+            "admin.directory.domain.readonly",
+            "admin.directory.customer.readonly",
+            "admin.directory.userschema.readonly",
+            "admin.directory.rolemanagement.readonly",
+            "admin.directory.resource.calendar.readonly",
+            "admin.directory.device.mobile.readonly",
+            "admin.directory.device.chromeos.readonly",
+            "admin.chrome.printers.readonly",
+        ],
+        (Service::AdminDirectory, Level::Write) => &[
+            "admin.directory.user",
+            "admin.directory.user.alias",
+            "admin.directory.user.security",
+            "admin.directory.orgunit",
+            "admin.directory.domain",
+            "admin.directory.customer",
+            "admin.directory.userschema",
+            "admin.directory.rolemanagement",
+            "admin.directory.resource.calendar",
+            "admin.directory.device.mobile",
+            "admin.directory.device.mobile.action",
+            "admin.directory.device.chromeos",
+            "admin.chrome.printers",
+        ],
+        (Service::AdminGroups, Level::Read) => &[
+            "admin.directory.group.readonly",
+            "admin.directory.group.member.readonly",
+        ],
+        (Service::AdminGroups, Level::Write) => {
+            &["admin.directory.group", "admin.directory.group.member"]
+        }
+        (Service::CloudIdentity, Level::Read) => &[
+            "cloud-identity.groups.readonly",
+            "cloud-identity.policies.readonly",
+            "cloud-identity.inboundsso.readonly",
+            "cloud-identity.allowlisteddomains.readonly",
+            "cloud-identity.devices.lookup",
+        ],
+        (Service::CloudIdentity, Level::Write) => &[
+            "cloud-identity.groups",
+            "cloud-identity.policies",
+            "cloud-identity.inboundsso",
+            "cloud-identity.allowlisteddomains",
+        ],
     }
 }
 
@@ -146,10 +228,12 @@ pub fn scopes_arg(selection: &Selection) -> String {
 
 /// Full scope URLs for a business connector selection.
 pub fn business_scopes_for(selection: &BusinessSelection) -> Vec<String> {
+    let mut seen = HashSet::new();
     business_normalize(selection)
         .iter()
         .flat_map(|access| business_level_scopes(access.connector, access.level))
-        .map(|short| format!("{SCOPE_PREFIX}{short}"))
+        .map(scope_url)
+        .filter(|scope| seen.insert(scope.clone()))
         .collect()
 }
 
@@ -184,13 +268,16 @@ fn business_level_scopes(connector: BusinessConnector, level: Level) -> &'static
     }
 }
 
+fn scope_url(scope: &&str) -> String {
+    if scope.starts_with("https://") {
+        (*scope).to_string()
+    } else {
+        format!("{SCOPE_PREFIX}{scope}")
+    }
+}
+
 /// Converts granted OAuth scopes into business connector levels.
 pub fn business_selection_from_scopes(granted: &[String]) -> BusinessSelection {
-    let is_granted = |short: &str| {
-        granted
-            .iter()
-            .any(|scope| scope.strip_prefix(SCOPE_PREFIX) == Some(short))
-    };
     let mut selection = BusinessSelection::new();
     for connector in [
         BusinessConnector::Youtube,
@@ -203,7 +290,7 @@ pub fn business_selection_from_scopes(granted: &[String]) -> BusinessSelection {
         for level in [Level::Read, Level::Write] {
             if business_level_scopes(connector, level)
                 .iter()
-                .all(|short| is_granted(short))
+                .all(|scope| has_scope(granted, scope))
             {
                 selection.insert(connector, level);
             }
@@ -220,15 +307,10 @@ pub fn business_selection_from_scopes(granted: &[String]) -> BusinessSelection {
 ///
 /// ```
 /// use haulmer_googleworkspace_mcp_core::{scopes, Level, Service};
-/// let granted = scopes::selection_from_scopes(&["https://www.googleapis.com/auth/drive.readonly".to_string()]);
-/// assert!(granted.contains(Service::Drive, Level::Read));
+/// let granted = scopes::selection_from_scopes(&["https://www.googleapis.com/auth/tasks.readonly".to_string()]);
+/// assert!(granted.contains(Service::Tasks, Level::Read));
 /// ```
 pub fn selection_from_scopes(granted: &[String]) -> Selection {
-    let is_granted = |short: &str| {
-        granted
-            .iter()
-            .any(|scope| scope.strip_prefix(SCOPE_PREFIX) == Some(short))
-    };
     let mut selection = Selection::new();
     for service in Service::ALL {
         for level in [Level::Read, Level::Write] {
@@ -237,13 +319,18 @@ pub fn selection_from_scopes(granted: &[String]) -> Selection {
             }
             if level_scopes(service, level)
                 .iter()
-                .all(|short| is_granted(short))
+                .all(|scope| has_scope(granted, scope))
             {
                 selection.insert(service, level);
             }
         }
     }
     selection
+}
+
+fn has_scope(granted: &[String], scope: &str) -> bool {
+    let expected = scope_url(&scope);
+    granted.iter().any(|granted| granted == &expected)
 }
 
 /// Plain-language labels for every service row, in UI order.
@@ -275,33 +362,49 @@ pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
         .into_iter()
         .map(|service| {
             let (name, read, write) = match service {
-                Service::Gmail => ("Gmail", "Leer correos", "Enviar y modificar correos"),
+                Service::Gmail => ("Gmail", "Leer correos", "Acceso completo al correo"),
                 Service::Calendar => (
                     "Calendar",
                     "Ver calendarios y eventos",
-                    "Crear y editar eventos",
+                    "Acceso completo a calendarios y eventos",
                 ),
                 Service::Chat => (
                     "Chat",
-                    "Leer espacios, mensajes y miembros",
-                    "Enviar mensajes",
+                    "Leer espacios, mensajes, miembros, reacciones y estado",
+                    "Acceso completo a espacios, mensajes y miembros",
                 ),
                 Service::Meet => (
                     "Meet",
                     "Ver reuniones y sus transcripciones",
-                    "Crear reuniones",
+                    "Crear espacios de reunión",
                 ),
                 Service::Drive => (
                     "Drive",
                     "Ver y descargar archivos",
-                    "Crear, editar y eliminar archivos",
+                    "Acceso completo a archivos",
                 ),
-                Service::Docs => ("Docs", "Leer documentos", "Editar documentos"),
-                Service::Sheets => ("Sheets", "Leer hojas de cálculo", "Editar hojas de cálculo"),
-                Service::Slides => ("Slides", "Leer presentaciones", "Editar presentaciones"),
-                Service::Forms => ("Forms", "Leer formularios", "Editar formularios"),
-                Service::Tasks => ("Tasks", "Leer listas de tareas", "Crear y editar tareas"),
-                Service::People => ("People", "Leer contactos y perfiles", "Editar contactos"),
+                Service::Docs => ("Docs", "Leer documentos", "Acceso completo a documentos"),
+                Service::Sheets => (
+                    "Sheets",
+                    "Leer hojas de cálculo",
+                    "Acceso completo a hojas de cálculo",
+                ),
+                Service::Slides => (
+                    "Slides",
+                    "Leer presentaciones",
+                    "Acceso completo a presentaciones",
+                ),
+                Service::Forms => (
+                    "Forms",
+                    "Leer formularios y respuestas",
+                    "Acceso completo a formularios",
+                ),
+                Service::Tasks => ("Tasks", "Leer listas de tareas", "Acceso completo a tareas"),
+                Service::People => (
+                    "People",
+                    "Leer contactos, perfiles y directorio",
+                    "Acceso completo a contactos",
+                ),
                 Service::AdminReports => (
                     "Informes de administración",
                     "Leer informes de auditoría y uso",
@@ -310,17 +413,17 @@ pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
                 Service::AdminDirectory => (
                     "Directorio de administración",
                     "Leer usuarios del directorio",
-                    "No disponible para esta API",
+                    "Acceso completo a usuarios del directorio",
                 ),
                 Service::AdminGroups => (
                     "Grupos de administración",
                     "Leer grupos y membresías",
-                    "No disponible para esta API",
+                    "Acceso completo a grupos y membresías",
                 ),
                 Service::CloudIdentity => (
                     "Cloud Identity",
                     "Leer grupos de identidad de la organización",
-                    "No disponible para esta API",
+                    "Acceso completo a grupos de identidad",
                 ),
             };
             ServiceInfo {
@@ -343,7 +446,6 @@ pub fn catalogue_for(granted: &Selection) -> Vec<ServiceInfo> {
                 enabled: !matches!(
                     service,
                     Service::AdminReports
-                        | Service::AdminDirectory
                         | Service::AdminGroups
                         | Service::CloudIdentity
                 ) || granted.contains(service, Level::Read),

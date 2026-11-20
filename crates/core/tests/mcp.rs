@@ -196,7 +196,13 @@ fn connected(home: &TempDir, runner: &FakeRunner, scopes: &[&str], token_valid: 
     std::fs::write(dir.join("credentials.enc"), b"x").unwrap();
     let scopes: Vec<String> = scopes
         .iter()
-        .map(|scope| format!("https://www.googleapis.com/auth/{scope}"))
+        .map(|scope| {
+            if scope.starts_with("https://") {
+                (*scope).to_string()
+            } else {
+                format!("https://www.googleapis.com/auth/{scope}")
+            }
+        })
         .collect();
     let status = json!({"user": "ana@haulmer.com", "scopes": scopes, "token_valid": token_valid});
     runner.on(&["auth", "status"], FakeReply::ok(&status.to_string()));
@@ -319,7 +325,12 @@ fn a_failure_on_a_service_with_write_access_returns_the_raw_output() {
     connected(
         &home,
         &runner,
-        &["gmail.readonly", "gmail.send", "gmail.modify"],
+        &[
+            "gmail.readonly",
+            "https://mail.google.com/",
+            "gmail.settings.basic",
+            "gmail.settings.sharing",
+        ],
         true,
     );
     runner.on(&["gmail"], FakeReply::exit(1, "", "400 bad request"));
@@ -436,7 +447,7 @@ fn status_lists_the_account_and_the_levels_per_service() {
     connected(
         &home,
         &runner,
-        &["gmail.readonly", "calendar.readonly", "calendar.events"],
+        &["gmail.readonly", "calendar.readonly", "calendar"],
         true,
     );
 

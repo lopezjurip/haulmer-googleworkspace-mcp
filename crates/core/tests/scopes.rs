@@ -39,7 +39,11 @@ fn normalize_adds_read_for_every_write_and_keeps_the_rest() {
 
 /// Full URL for a short scope name, written out so expectations stay independent of the code.
 fn url(short: &str) -> String {
-    format!("https://www.googleapis.com/auth/{short}")
+    if short.starts_with("https://") {
+        short.to_string()
+    } else {
+        format!("https://www.googleapis.com/auth/{short}")
+    }
 }
 
 /// `scopes_for` as a sorted list, after checking it has no duplicates.
@@ -58,24 +62,171 @@ fn sorted(shorts: &[&str]) -> Vec<String> {
     urls
 }
 
+/// Every read-only user-facing scope of each service's Google APIs.
+const READ_ROWS: [(Service, &[&str]); 15] = [
+    (Service::Gmail, &["gmail.readonly"]),
+    (Service::Calendar, &["calendar.readonly"]),
+    (
+        Service::Chat,
+        &[
+            "chat.spaces.readonly",
+            "chat.messages.readonly",
+            "chat.memberships.readonly",
+            "chat.messages.reactions.readonly",
+            "chat.users.readstate.readonly",
+            "chat.users.sections.readonly",
+            "chat.users.availability.readonly",
+            "chat.spaces.pins.readonly",
+            "chat.customemojis.readonly",
+            "chat.admin.spaces.readonly",
+            "chat.admin.memberships.readonly",
+        ],
+    ),
+    (Service::Meet, &["meetings.space.readonly"]),
+    (Service::Drive, &["drive.readonly", "drive.apps.readonly"]),
+    (Service::Docs, &["documents.readonly"]),
+    (Service::Sheets, &["spreadsheets.readonly"]),
+    (Service::Slides, &["presentations.readonly"]),
+    (
+        Service::Forms,
+        &["forms.body.readonly", "forms.responses.readonly"],
+    ),
+    (Service::Tasks, &["tasks.readonly"]),
+    (
+        Service::People,
+        &[
+            "contacts.readonly",
+            "contacts.other.readonly",
+            "directory.readonly",
+            "user.addresses.read",
+            "user.birthday.read",
+            "user.emails.read",
+            "user.gender.read",
+            "user.organization.read",
+            "user.phonenumbers.read",
+        ],
+    ),
+    (
+        Service::AdminReports,
+        &[
+            "admin.reports.audit.readonly",
+            "admin.reports.usage.readonly",
+        ],
+    ),
+    (
+        Service::AdminDirectory,
+        &[
+            "admin.directory.user.readonly",
+            "admin.directory.user.alias.readonly",
+            "admin.directory.orgunit.readonly",
+            "admin.directory.domain.readonly",
+            "admin.directory.customer.readonly",
+            "admin.directory.userschema.readonly",
+            "admin.directory.rolemanagement.readonly",
+            "admin.directory.resource.calendar.readonly",
+            "admin.directory.device.mobile.readonly",
+            "admin.directory.device.chromeos.readonly",
+            "admin.chrome.printers.readonly",
+        ],
+    ),
+    (
+        Service::AdminGroups,
+        &[
+            "admin.directory.group.readonly",
+            "admin.directory.group.member.readonly",
+        ],
+    ),
+    (
+        Service::CloudIdentity,
+        &[
+            "cloud-identity.groups.readonly",
+            "cloud-identity.policies.readonly",
+            "cloud-identity.inboundsso.readonly",
+            "cloud-identity.allowlisteddomains.readonly",
+            "cloud-identity.devices.lookup",
+        ],
+    ),
+];
+
+/// Scopes added by Full access, on top of the Read scopes; broader scopes already cover
+/// narrower ones (`drive` covers `drive.file`, `mail.google.com` covers `gmail.modify`).
+const WRITE_ROWS: [(Service, &[&str]); 14] = [
+    (
+        Service::Gmail,
+        &[
+            "https://mail.google.com/",
+            "gmail.settings.basic",
+            "gmail.settings.sharing",
+        ],
+    ),
+    (Service::Calendar, &["calendar"]),
+    (
+        Service::Chat,
+        &[
+            "chat.spaces",
+            "chat.memberships",
+            "chat.messages",
+            "chat.messages.reactions",
+            "chat.users.readstate",
+            "chat.users.sections",
+            "chat.users.availability",
+            "chat.users.spacesettings",
+            "chat.spaces.pins",
+            "chat.customemojis",
+            "chat.delete",
+            "chat.import",
+            "chat.admin.spaces",
+            "chat.admin.memberships",
+            "chat.admin.delete",
+        ],
+    ),
+    (
+        Service::Meet,
+        &["meetings.space.created", "meetings.space.settings"],
+    ),
+    (Service::Drive, &["drive", "drive.scripts"]),
+    (Service::Docs, &["documents"]),
+    (Service::Sheets, &["spreadsheets"]),
+    (Service::Slides, &["presentations"]),
+    (Service::Forms, &["forms.body"]),
+    (Service::Tasks, &["tasks"]),
+    (Service::People, &["contacts"]),
+    (
+        Service::AdminDirectory,
+        &[
+            "admin.directory.user",
+            "admin.directory.user.alias",
+            "admin.directory.user.security",
+            "admin.directory.orgunit",
+            "admin.directory.domain",
+            "admin.directory.customer",
+            "admin.directory.userschema",
+            "admin.directory.rolemanagement",
+            "admin.directory.resource.calendar",
+            "admin.directory.device.mobile",
+            "admin.directory.device.mobile.action",
+            "admin.directory.device.chromeos",
+            "admin.chrome.printers",
+        ],
+    ),
+    (
+        Service::AdminGroups,
+        &["admin.directory.group", "admin.directory.group.member"],
+    ),
+    (
+        Service::CloudIdentity,
+        &[
+            "cloud-identity.groups",
+            "cloud-identity.policies",
+            "cloud-identity.inboundsso",
+            "cloud-identity.allowlisteddomains",
+        ],
+    ),
+];
+
 #[test]
-fn every_read_row_of_the_spec_table_maps_to_exactly_its_scopes() {
-    let rows: [(Service, &[&str]); 5] = [
-        (Service::Gmail, &["gmail.readonly"]),
-        (Service::Calendar, &["calendar.readonly"]),
-        (
-            Service::Chat,
-            &[
-                "chat.spaces.readonly",
-                "chat.messages.readonly",
-                "chat.memberships.readonly",
-                "chat.users.readstate.readonly",
-            ],
-        ),
-        (Service::Meet, &["meetings.space.readonly"]),
-        (Service::Drive, &["drive.readonly"]),
-    ];
-    for (service, expected) in rows {
+fn every_read_row_maps_to_exactly_its_scopes() {
+    for (service, expected) in READ_ROWS {
         let selection = Selection::from_levels([(service, Level::Read)]);
         assert_eq!(
             sorted_scopes(&selection),
@@ -87,36 +238,28 @@ fn every_read_row_of_the_spec_table_maps_to_exactly_its_scopes() {
 
 #[test]
 fn every_write_row_maps_to_its_write_scopes_plus_its_read_scopes() {
-    let rows: [(Service, &[&str]); 5] = [
-        (
-            Service::Gmail,
-            &["gmail.readonly", "gmail.send", "gmail.modify"],
-        ),
-        (Service::Calendar, &["calendar.readonly", "calendar.events"]),
-        (
-            Service::Chat,
-            &[
-                "chat.spaces.readonly",
-                "chat.messages.readonly",
-                "chat.memberships.readonly",
-                "chat.users.readstate.readonly",
-                "chat.messages",
-            ],
-        ),
-        (
-            Service::Meet,
-            &["meetings.space.readonly", "meetings.space.created"],
-        ),
-        (Service::Drive, &["drive.readonly", "drive"]),
-    ];
-    for (service, expected) in rows {
+    for (service, write) in WRITE_ROWS {
+        let read = READ_ROWS.iter().find(|row| row.0 == service).unwrap().1;
+        let expected: Vec<&str> = read.iter().chain(write).copied().collect();
         let selection = Selection::from_levels([(service, Level::Write)]);
         assert_eq!(
             sorted_scopes(&selection),
-            sorted(expected),
+            sorted(&expected),
             "{service:?} Write"
         );
     }
+}
+
+#[test]
+fn admin_reports_has_no_write_level() {
+    let selection = Selection::from_levels([(Service::AdminReports, Level::Write)]);
+    assert_eq!(
+        sorted_scopes(&selection),
+        sorted_scopes(&Selection::from_levels([(
+            Service::AdminReports,
+            Level::Read
+        )]))
+    );
 }
 
 #[test]
@@ -133,7 +276,7 @@ fn scopes_arg_is_the_full_urls_joined_with_commas() {
     assert_eq!(
         parts,
         [
-            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/calendar",
             "https://www.googleapis.com/auth/calendar.readonly",
         ]
     );
@@ -142,24 +285,26 @@ fn scopes_arg_is_the_full_urls_joined_with_commas() {
 
 #[test]
 fn reverse_mapping_round_trips_every_normalized_selection() {
-    // Each service is off, Read, or Read + Write: 3^5 selections.
-    for code in 0..3u32.pow(5) {
-        let mut selection = Selection::new();
-        for (index, service) in Service::ALL.into_iter().enumerate() {
-            match code / 3u32.pow(index as u32) % 3 {
-                1 => {
-                    selection.insert(service, Level::Read);
-                }
-                2 => {
-                    selection.insert(service, Level::Read);
-                    selection.insert(service, Level::Write);
-                }
-                _ => {}
+    for service in Service::ALL {
+        for levels in [&[][..], &[Level::Read], &[Level::Read, Level::Write]] {
+            if service == Service::AdminReports && levels.contains(&Level::Write) {
+                continue;
             }
+            let selection =
+                Selection::from_levels(levels.iter().copied().map(|level| (service, level)));
+            let granted = scopes::scopes_for(&selection);
+            assert_eq!(scopes::selection_from_scopes(&granted), selection);
         }
-        let granted = scopes::scopes_for(&selection);
-        assert_eq!(scopes::selection_from_scopes(&granted), selection);
     }
+
+    let selection = scopes::normalize(&Selection::from_levels([
+        (Service::Gmail, Level::Read),
+        (Service::Calendar, Level::Write),
+        (Service::Docs, Level::Write),
+        (Service::AdminGroups, Level::Write),
+    ]));
+    let granted = scopes::scopes_for(&selection);
+    assert_eq!(scopes::selection_from_scopes(&granted), selection);
 }
 
 #[test]
@@ -185,11 +330,11 @@ fn identity_scopes_are_ignored() {
         "profile".to_string(),
         url("userinfo.email"),
         url("userinfo.profile"),
-        url("drive.readonly"),
+        url("tasks.readonly"),
     ];
     assert_eq!(
         scopes::selection_from_scopes(&granted),
-        Selection::from_levels([(Service::Drive, Level::Read)])
+        Selection::from_levels([(Service::Tasks, Level::Read)])
     );
     assert!(scopes::selection_from_scopes(&granted[..5]).is_empty());
 }
@@ -240,15 +385,46 @@ fn catalogue_lists_every_service_in_ui_order_with_plain_labels() {
         ]
     );
     assert_eq!(catalogue[0].read, "Leer correos");
-    assert_eq!(catalogue[0].write, "Enviar y modificar correos");
+    assert_eq!(catalogue[0].write, "Acceso completo al correo");
     for info in &catalogue {
         assert!(!info.read.is_empty(), "{info:?}");
         assert!(!info.write.is_empty(), "{info:?}");
     }
 
     assert!(catalogue[..11].iter().all(|info| info.enabled));
-    assert!(catalogue[11..].iter().all(|info| !info.enabled));
-    assert!(catalogue[11..].iter().all(|info| !info.write_enabled));
+    assert!(
+        catalogue[11..]
+            .iter()
+            .filter(|info| info.service != Service::AdminDirectory)
+            .all(|info| !info.enabled)
+    );
+    assert!(
+        catalogue[11..]
+            .iter()
+            .filter(|info| info.service == Service::AdminReports)
+            .all(|info| !info.write_enabled)
+    );
+    assert!(
+        catalogue
+            .iter()
+            .find(|info| info.service == Service::AdminDirectory)
+            .unwrap()
+            .write_enabled
+    );
+    assert!(
+        catalogue
+            .iter()
+            .find(|info| info.service == Service::AdminGroups)
+            .unwrap()
+            .write_enabled
+    );
+    assert!(
+        catalogue
+            .iter()
+            .find(|info| info.service == Service::CloudIdentity)
+            .unwrap()
+            .write_enabled
+    );
 
     let admin_granted = Selection::from_levels([(Service::AdminReports, Level::Read)]);
     let with_admin = scopes::catalogue_for(&admin_granted);
@@ -274,4 +450,55 @@ fn business_selection_maps_youtube_read_scope() {
         ]),
         selection
     );
+}
+
+#[test]
+fn every_business_connector_maps_read_and_full_access_scopes() {
+    let rows: [(BusinessConnector, &[&str], &[&str]); 6] = [
+        (
+            BusinessConnector::Youtube,
+            &["youtube.readonly"],
+            &["youtube.readonly", "youtube"],
+        ),
+        (BusinessConnector::GoogleAds, &["adwords"], &["adwords"]),
+        (
+            BusinessConnector::Analytics,
+            &["analytics.readonly"],
+            &["analytics.readonly", "analytics.edit"],
+        ),
+        (
+            BusinessConnector::SearchConsole,
+            &["webmasters.readonly"],
+            &["webmasters.readonly", "webmasters"],
+        ),
+        (
+            BusinessConnector::BusinessProfile,
+            &["business.manage"],
+            &["business.manage"],
+        ),
+        (
+            BusinessConnector::MerchantCenter,
+            &["content"],
+            &["content"],
+        ),
+    ];
+
+    for (connector, read, full) in rows {
+        assert_eq!(
+            sorted_business_scopes(&BusinessSelection::from_levels([(connector, Level::Read)])),
+            sorted(read),
+            "{connector:?} Read"
+        );
+        assert_eq!(
+            sorted_business_scopes(&BusinessSelection::from_levels([(connector, Level::Write)])),
+            sorted(full),
+            "{connector:?} Write"
+        );
+    }
+}
+
+fn sorted_business_scopes(selection: &BusinessSelection) -> Vec<String> {
+    let mut scopes = haulmer_googleworkspace_mcp_core::scopes::business_scopes_for(selection);
+    scopes.sort();
+    scopes
 }
