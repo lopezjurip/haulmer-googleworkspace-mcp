@@ -19,6 +19,7 @@ use tray::{TrayState, refresh_tray_menu, set_tray_menu};
 
 /// Bundle identifier of the app (`identifier` in `tauri.conf.json`); the app data folder is named after it.
 const IDENTIFIER: &str = "com.haulmer.googleworkspace.mcp";
+const CONFIG_DIR_NAME: &str = "gws-haulmer";
 
 /// Event emitted with the Google sign-in URL while `save` waits for the login.
 const AUTH_URL_EVENT: &str = "auth-url";
@@ -28,6 +29,17 @@ fn mcp_paths(home: PathBuf, data_dir: PathBuf) -> Paths {
         app_data: data_dir.join(IDENTIFIER),
         home,
     }
+}
+
+fn default_config_dir(home: &std::path::Path) -> PathBuf {
+    home.join(".config").join(CONFIG_DIR_NAME)
+}
+
+fn configure_haulmer_gws(core: &Core) -> Result<(), CoreError> {
+    if core.settings()?.is_default_config_dir() {
+        core.set_config_dir(Some(default_config_dir(&core.paths().home)))?;
+    }
+    Ok(())
 }
 
 /// `Core::status`.
@@ -130,7 +142,7 @@ fn export_skills_zip(core: State<'_, Core>, path: PathBuf) -> Result<(), CoreErr
     Ok(())
 }
 
-/// `Core::set_config_dir`; `null` resets to the gws default folder.
+/// `Core::set_config_dir`; `null` resets to Haulmer's isolated default folder.
 ///
 /// # Example
 ///
@@ -139,7 +151,7 @@ fn export_skills_zip(core: State<'_, Core>, path: PathBuf) -> Result<(), CoreErr
 /// ```
 #[tauri::command]
 fn set_config_dir(core: State<'_, Core>, dir: Option<PathBuf>) -> Result<(), CoreError> {
-    core.set_config_dir(dir)
+    core.set_config_dir(dir.or_else(|| Some(default_config_dir(&core.paths().home))))
 }
 
 /// `Core::set_key_storage` (`"auto"`, `"keyring"` or `"file"`).
@@ -301,7 +313,9 @@ pub fn run() {
                 home: app.path().home_dir()?,
                 app_data: app.path().app_data_dir()?,
             };
-            app.manage(Core::system(paths));
+            let core = Core::system(paths);
+            configure_haulmer_gws(&core)?;
+            app.manage(core);
             refresh_tray_menu(app.handle(), &app.state::<Core>());
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -430,6 +444,7 @@ pub fn run_mcp() -> Result<(), CoreError> {
         }
     }
     let core = Core::system(mcp_paths(home, data_dir));
+    configure_haulmer_gws(&core)?;
     mcp::serve(
         &core,
         &open_app_detached,
