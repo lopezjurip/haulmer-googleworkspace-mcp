@@ -209,16 +209,7 @@ pub fn skills_add_command() -> String {
 /// Adds stable generic skills for Workspace APIs that may not exist in the pinned
 /// gws skill tarball. The CLI still discovers their live methods with `help`/`schema`.
 fn add_builtin_workspace_skills(skills: &mut BTreeMap<String, SkillFiles>) {
-    for service in [
-        Service::Docs,
-        Service::Sheets,
-        Service::Slides,
-        Service::Forms,
-        Service::Tasks,
-        Service::AdminDirectory,
-        Service::AdminGroups,
-        Service::CloudIdentity,
-    ] {
+    for service in Service::ALL {
         let name = format!("gws-{}", service.slug());
         skills.entry(name.clone()).or_insert_with(|| {
             let content = format!(
@@ -330,12 +321,12 @@ mod tests {
     }
 
     #[test]
-    fn builtin_skills_cover_admin_services_missing_from_the_pinned_archive() {
+    fn every_catalogue_service_has_an_exportable_skill() {
         let mut skills = BTreeMap::new();
         add_builtin_workspace_skills(&mut skills);
 
-        for service in ["admin-directory", "admin-groups", "cloud-identity"] {
-            assert!(skills.contains_key(&format!("gws-{service}")));
+        for service in super::Service::ALL {
+            assert!(skills.contains_key(&format!("gws-{}", service.slug())));
         }
     }
 }
