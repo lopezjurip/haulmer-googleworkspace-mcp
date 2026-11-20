@@ -4,7 +4,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import adminIcon from "./assets/service-icons/admin.png";
 import businessIntelligenceIcon from "./assets/service-icons/business-intelligence.png";
 import calendarIcon from "./assets/service-icons/calendar.png";
@@ -233,6 +233,8 @@ export default function App() {
   const [catalogueError, setCatalogueError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>([]);
   const [busy, setBusy] = useState<Busy>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const cancellingRef = useRef(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [update, setUpdate] = useState<Update | null>(null);
@@ -373,9 +375,9 @@ export default function App() {
       });
       if (outcome.kind === "needs_replace_confirmation") {
         const replace = await ask(
-          "Ya tienes gws conectado con otra aplicación. ¿Quieres reemplazarlo?",
+          "Es necesario actualizar los permisos. Si cancelas la operación, tus permisos actuales seguirán funcionando como antes.",
           {
-            title: "Reemplazar conexión de gws",
+            title: "Se volverá a abrir la pantalla de consentimiento",
             kind: "warning",
             okLabel: "Sí",
             cancelLabel: "No",
@@ -428,6 +430,8 @@ export default function App() {
       await refreshStatus();
     } finally {
       setBusy(null);
+      cancellingRef.current = false;
+      setCancelling(false);
       setAuthUrl(null);
     }
   }
@@ -439,10 +443,17 @@ export default function App() {
    * <button onClick={handleCancel}>Cancel</button>
    */
   async function handleCancel() {
+    if (cancellingRef.current) {
+      return;
+    }
+    cancellingRef.current = true;
+    setCancelling(true);
     try {
       await invoke("cancel_login");
     } catch (error) {
       setNotice({ kind: "error", text: ERROR_TEXT(error) });
+      cancellingRef.current = false;
+      setCancelling(false);
     }
   }
 
@@ -548,6 +559,30 @@ export default function App() {
         selectionKey(businessSelection) !==
           selectionKey(status.business_granted));
   const saveDisabled = disabled || !hasChanges;
+  const setAllAccess = (access: "read" | "write") => {
+    let nextSelection = selection;
+    for (const info of catalogue) {
+      if (!info.enabled || (access === "write" && !info.write_enabled)) {
+        continue;
+      }
+      nextSelection = updateServiceAccess(nextSelection, info.service, access);
+    }
+
+    let nextBusinessSelection = businessSelection;
+    for (const info of businessCatalogue) {
+      if (!info.enabled) {
+        continue;
+      }
+      nextBusinessSelection = updateBusinessAccess(
+        nextBusinessSelection,
+        info.connector,
+        access,
+      );
+    }
+
+    setSelection(nextSelection);
+    setBusinessSelection(nextBusinessSelection);
+  };
   const statusDotClass =
     status === null || statusError !== null
       ? "bg-amber-400"
@@ -614,9 +649,29 @@ export default function App() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-200">
-            Lo que pueden usar tus agentes
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-200">
+              Lo que pueden usar tus agentes
+            </h2>
+            <div className="flex shrink-0 items-center gap-2 text-xs">
+              <button
+                type="button"
+                className="text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:text-zinc-100"
+                disabled={disabled}
+                onClick={() => setAllAccess("read")}
+              >
+                Todos lectura
+              </button>
+              <button
+                type="button"
+                className="text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:text-zinc-100"
+                disabled={disabled}
+                onClick={() => setAllAccess("write")}
+              >
+                Todos completos
+              </button>
+            </div>
+          </div>
           {catalogueError !== null && (
             <p className="text-sm text-slate-500 dark:text-zinc-400">
               Servicios no disponibles: {catalogueError}
@@ -761,9 +816,11 @@ export default function App() {
               <button
                 type="button"
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                disabled={cancelling}
+                aria-busy={cancelling}
                 onClick={handleCancel}
               >
-                Cancelar
+                {cancelling ? "Cancelando…" : "Cancelar"}
               </button>
             )}
             <button
