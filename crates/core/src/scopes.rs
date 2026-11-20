@@ -101,6 +101,7 @@ fn level_scopes(service: Service, level: Level) -> &'static [&'static str] {
             "chat.spaces.readonly",
             "chat.messages.readonly",
             "chat.memberships.readonly",
+            "chat.users.readstate.readonly",
         ],
         (Service::Chat, Level::Write) => &["chat.messages"],
         (Service::Meet, Level::Read) => &["meetings.space.readonly"],
