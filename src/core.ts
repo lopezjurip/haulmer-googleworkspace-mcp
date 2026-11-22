@@ -47,6 +47,12 @@ export type Status = {
   foreign_credentials: boolean;
 };
 
+/**
+ * What the `scope_count` command reports: the scopes a save of the selection sends to Google
+ * (including the identity scopes gws adds), and the most one consent request accepts.
+ */
+export type ScopeCount = { requested: number; max: number };
+
 /** Result of the `save` command. */
 export type SaveOutcome =
   | { kind: "connected"; status: Status }

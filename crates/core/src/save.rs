@@ -15,6 +15,8 @@ impl Core {
     /// Blocks until the login ends or [`Core::cancel_login`] is called ([`CoreError::Cancelled`]).
     /// If the old access was revoked first and the login is then cancelled or fails, returns
     /// [`CoreError::AccessRemoved`] (nothing is connected any more).
+    /// Returns [`CoreError::TooManyScopes`] before changing anything when the selection needs
+    /// more than [`scopes::GOOGLE_MAX_SCOPES`] scopes in total ([`scopes::scope_count`]).
     ///
     /// # Example
     ///
@@ -59,6 +61,15 @@ impl Core {
             }
             return Ok(SaveOutcome::Connected(self.status()?));
         }
+        // Checked before any revocation: a refused login must leave the old access in place.
+        let count = scopes::scope_count(&selection, &business_selection);
+        if count.requested > count.max {
+            return Err(CoreError::TooManyScopes {
+                requested: count.requested,
+                max: count.max,
+            });
+        }
+        let requested_scopes = scopes::login_scopes(&selection, &business_selection);
         let gws = self.ensure_gws()?;
         let (granted, business_granted) = if foreign {
             (Selection::new(), BusinessSelection::new())
@@ -75,10 +86,10 @@ impl Core {
         if removes_a_level || removes_business_level {
             self.revoke_and_logout(&gws)?;
             // The old access is gone: a sign-in that does not finish leaves nothing connected.
-            self.login(&gws, &selection, &business_selection, on_auth_url)
+            self.login(&gws, &requested_scopes, on_auth_url)
                 .map_err(|_| CoreError::AccessRemoved)?;
         } else {
-            self.login(&gws, &selection, &business_selection, on_auth_url)?;
+            self.login(&gws, &requested_scopes, on_auth_url)?;
         }
         gws_env::write_marker(&config_dir)?;
         Ok(SaveOutcome::Connected(self.status()?))
@@ -108,17 +119,15 @@ impl Core {
     ///
     /// ```ignore
     /// let gws = self.ensure_gws()?;
-    /// self.login(&gws, &selection, &|url| println!("open {url}"))?;
+    /// let scopes = scopes::login_scopes(&selection, &business_selection);
+    /// self.login(&gws, &scopes, &|url| println!("open {url}"))?;
     /// ```
     fn login(
         &self,
         gws: &Path,
-        selection: &Selection,
-        business_selection: &BusinessSelection,
+        requested_scopes: &[String],
         on_auth_url: &dyn Fn(&str),
     ) -> Result<(), CoreError> {
-        let mut requested_scopes = scopes::scopes_for(selection);
-        requested_scopes.extend(scopes::business_scopes_for(business_selection));
         let scopes = requested_scopes.join(",");
         let command = self.gws_command(gws, &["auth", "login", "--scopes", &scopes])?;
         let mut process = self.runner.spawn(&command)?;
